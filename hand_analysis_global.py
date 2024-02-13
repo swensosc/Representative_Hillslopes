@@ -120,7 +120,7 @@ dem_source = 'MERIT'
 # define regions from gridcells in surface data file
 snum = 1
 if snum == 1:
-    sfcfile = '/fs/cgd/csm/inputdata/lnd/clm2/surfdata_map/surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc'
+    sfcfile = 'surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc'
     if cndx == 0:
         odir = './'
         outfile = odir + 'HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad_0.9x1.25_Global.nc'
@@ -130,7 +130,7 @@ if snum == 1:
         
 # Select DEM source data
 if dem_source == 'MERIT':
-    efile0 = '/project/tss02/swensosc/MERIT/data/elv_DirTag/TileTag_elv.tif'
+    efile0 = 'MERIT/data/elv_DirTag/TileTag_elv.tif'
     outfile = outfile.replace('.nc','_MERIT.nc')
     print('\ndem template files: ',efile0,'\n')
 

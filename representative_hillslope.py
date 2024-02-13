@@ -9,8 +9,7 @@ import pyproj
 import rasterio
 import gdal as gd
 
-# there is a conflict w/ conda environment name
-hdir = '/project/tss/swensosc/pylibs/pysheds_extension/pysheds/'
+hdir = 'pysheds_extension/pysheds/'
 sys.path.append(hdir)
 from pgrid import Grid
 
