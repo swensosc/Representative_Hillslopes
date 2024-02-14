@@ -9,15 +9,15 @@ import netCDF4 as netcdf4
 '''
 routines for modifying geospatial data
 
-smooth_2d_array:          smooth a 2d array
-fit_planar_surface:       fit a planar surface to a 2d array
-blend_edges:             blend the edges of a 2d array
+smooth_2d_array:        smooth a 2d array
+fit_planar_surface:     fit a planar surface to a 2d array
+blend_edges:            blend the edges of a 2d array
 arg_closest_point:      return the index of an array that is closest to a given value
-calc_gradient_horn1981: calculate gradient using method of Horn 1981
+calc_gradient:          calculate gradient
 std_dev:                standard deviation
 quadratic:              return a solution of a quadratic equation
-_four_point_laplacian:   calculate laplacian using four neighboring points
-_inside_indices_buffer:  return indices excluding those in a buffer around array edges
+_four_point_laplacian:  calculate laplacian using four neighboring points
+_inside_indices_buffer: return indices excluding those in a buffer around array edges
 _expand_mask_buffer:     expand a mask spatially
 
 '''    
@@ -103,23 +103,32 @@ def arg_closest_point(point,array):
     # find closest value in an array using 32 bit precision
     return np.argmin(np.abs(np.float32(point) - np.float32(array)))
 
-def calc_gradient_horn1981(z,lon,lat):
-    dzdy,dzdx = np.gradient(z)
-    dzdy2, dzdx2 = np.zeros(dzdy.shape),np.zeros(dzdx.shape)
-    # average [-1,0,0,1] gradient values at each point, in each direction
-    # at edges, use 3 points instead of 4
+def calc_gradient(z,lon,lat,method='Horn1981'):
+    if method not in ['Horn1981','O1']:
+        print('method must be either Horn1981 or O1')
+        stop
 
-    eind = np.asarray([0,0,1])
-    dzdx2[0,:] = np.mean(dzdx[eind,:],axis=0)
-    dzdy2[:,0] = np.mean(dzdy[:,eind],axis=1)
-    eind = np.asarray([-2,-1,-1])
-    dzdx2[-1,:] = np.mean(dzdx[eind,:],axis=0)
-    dzdy2[:,-1] = np.mean(dzdy[:,eind],axis=1)
-    ind = np.asarray([-1,0,0,1])
-    for n in range(1,dzdx.shape[0]-1):
-        dzdx2[n,:] = np.mean(dzdx[n+ind,:],axis=0)
-    for n in range(1,dzdy.shape[1]-1):
-        dzdy2[:,n] = np.mean(dzdy[:,n+ind],axis=1)
+    if method == 'O1':
+        dzdy2,dzdx2 = np.gradient(z)
+
+    if method == 'Horn1981':
+        dzdy,dzdx = np.gradient(z)
+
+        dzdy2, dzdx2 = np.zeros(dzdy.shape),np.zeros(dzdx.shape)
+        # average [-1,0,0,1] gradient values at each point, in each direction
+        # at edges, use 3 points instead of 4
+
+        eind = np.asarray([0,0,1])
+        dzdx2[0,:] = np.mean(dzdx[eind,:],axis=0)
+        dzdy2[:,0] = np.mean(dzdy[:,eind],axis=1)
+        eind = np.asarray([-2,-1,-1])
+        dzdx2[-1,:] = np.mean(dzdx[eind,:],axis=0)
+        dzdy2[:,-1] = np.mean(dzdy[:,eind],axis=1)
+        ind = np.asarray([-1,0,0,1])
+        for n in range(1,dzdx.shape[0]-1):
+            dzdx2[n,:] = np.mean(dzdx[n+ind,:],axis=0)
+        for n in range(1,dzdy.shape[1]-1):
+            dzdy2[:,n] = np.mean(dzdy[:,n+ind],axis=1)
     
     # calculate spacing
     dx = re*dtr*np.abs(lon[0] - lon[1])
