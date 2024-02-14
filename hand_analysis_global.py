@@ -23,9 +23,7 @@ parser.add_argument("-o", "--overwrite", help="overwrite", action="store_true",d
 parser.add_argument("-d", "--debug", help="print debugging info", action="store_true",default=False)
 parser.add_argument("-t", "--timer", help="print timing info", action="store_true",default=False)
 parser.add_argument("--pt", help="location", nargs='?',type=int,default=0)
-parser.add_argument("--asp_ndx", help="aspect", nargs='?',type=int,default=0)
 parser.add_argument("--form", help="hillslope form", nargs='?',type=int,default=0)
-parser.add_argument("--pngfile", help="output file", nargs='?',type=str,default=None)
 args = parser.parse_args()
 
 cndx = args.cndx
@@ -42,13 +40,6 @@ if cndx == 0 and args.pt < 1:
 
 print('Chunk ', cndx)    
 chunkLabel = '{:02d}'.format(cndx)
-
-if type(args.pngfile) != type(None):
-    usePngArg = True
-    pngfile = args.pngfile
-else:
-    usePngArg = False
-    pngfile = './geoparams.png'
 
 doTimer = args.timer
 
@@ -118,15 +109,9 @@ nhillslope = naspect
 dem_source = 'MERIT'
 
 # define regions from gridcells in surface data file
-snum = 1
-if snum == 1:
-    sfcfile = 'surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc'
-    if cndx == 0:
-        odir = './'
-        outfile = odir + 'HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad_0.9x1.25_Global.nc'
-    else:
-        odir = './'
-        outfile = odir + 'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad_0.9x1.25_Global.nc'
+sfcfile = 'surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc'
+odir = './'
+outfile = odir + 'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc'
         
 # Select DEM source data
 if dem_source == 'MERIT':
@@ -143,7 +128,6 @@ sim  = slon.size
 sjm  = slat.size
 landmask = np.asarray(f.variables['PFTDATA_MASK'][:,])
 pct_natveg = np.asarray(f.variables['PCT_NATVEG'][:,])
-pct_lake = np.asarray(f.variables['PCT_LAKE'][:,])
 f.close()
 
 landmask[pct_natveg <= 0] = 0

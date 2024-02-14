@@ -538,12 +538,12 @@ def IdentifySpatialScaleLaplacian(corners, \
     grad = calc_gradient_horn1981(elev,elon,elat)
     # get spectrum of divergence
     x = calc_gradient_horn1981(grad[0],elon,elat)
-    div = x[0]
+    laplac = x[0]
     x = calc_gradient_horn1981(grad[1],elon,elat)
-    div += x[1]
+    laplac += x[1]
 
-    div_fft = np.fft.rfft2(div,norm='ortho')
-    div_amp_fft = np.abs(div_fft)
+    laplac_fft = np.fft.rfft2(laplac,norm='ortho')
+    laplac_amp_fft = np.abs(laplac_fft)
 
     if verbose:
         print('DFTs calculated\n')
@@ -552,7 +552,7 @@ def IdentifySpatialScaleLaplacian(corners, \
     rowfreq = np.fft.fftfreq(ejm)
     colfreq = np.fft.rfftfreq(eim)
 
-    ny,nx = div_fft.shape
+    ny,nx = laplac_fft.shape
     radialfreq = np.sqrt(np.tile(colfreq*colfreq,(ny,1)) \
                  +np.tile(rowfreq*rowfreq,(nx,1)).T)
 
@@ -563,7 +563,7 @@ def IdentifySpatialScaleLaplacian(corners, \
     wavelength[0,0] = 2*np.max(wavelength)
 
     # Create logarithmically binned 1d amplitude spectra
-    x = _bin_amplitude_spectrum(div_amp_fft,wavelength,nlambda=nlambda)
+    x = _bin_amplitude_spectrum(laplac_amp_fft,wavelength,nlambda=nlambda)
     lambda_1d,laplac_amp_1d = x['lambda'],x['amp']
     
     # fit curve in window around fit_peaks 
