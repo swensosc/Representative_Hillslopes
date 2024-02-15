@@ -83,15 +83,17 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
     # dem_file_template is assumed to have form of:
     # 'my_path/elv_DirTag/TileTag_elv.tif'
 
-    efiles = []
+    # tiles are 5 x 5 degree, directories contain 30 degree band
+    mres = 5
+    dres = 30
+    sigfigs = 6
 
     # round to correct numbers that are just slightly less than integer
-    sigfigs = 6
     ll_corner = [np.round(corners[0][0],sigfigs),np.round(corners[0][1],sigfigs)]
     ur_corner = [np.round(corners[-1][0],sigfigs),np.round(corners[-1][1],sigfigs)]
     
-    lonmin, lonmax = int((ll_corner[0]//5)*5), int((ur_corner[0]//5)*5)
-    latmin, latmax = int((ll_corner[1]//5)*5), int((ur_corner[1]//5)*5)
+    lonmin, lonmax = int((ll_corner[0]//mres)*mres), int((ur_corner[0]//mres)*mres)
+    latmin, latmax = int((ll_corner[1]//mres)*mres), int((ur_corner[1]//mres)*mres)
     
     # if right boundary is multiple of tile resolution, exclude it
     if (ur_corner[0]-lonmax) == 0.0:
@@ -109,15 +111,16 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
     if lonmax < lonmin:
         lonmax += 360
     
-    nlon = lonmin + np.arange((lonmax - lonmin)//5 + lnpad)*5
-    nlat = latmin + np.arange((latmax - latmin)//5 + ltpad)*5
+    nlon = lonmin + np.arange((lonmax - lonmin)//mres + lnpad)*mres
+    nlat = latmin + np.arange((latmax - latmin)//mres + ltpad)*mres
 
+    efiles = []
     for lonc in nlon:
         for latc in nlat:
-            tlon = int((lonc//5)*5)
+            tlon = int((lonc//mres)*mres)
             if tlon >= 180:
                 tlon -= 360
-            tlat = int((latc//5)*5)
+            tlat = int((latc//mres)*mres)
 
             abstlon = abs(tlon)
             lonstr  = '{:03d}'.format(abstlon)
@@ -129,8 +132,8 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
 
             tiletag = latstr+lonstr
 
-            dir_tlon = (tlon//30)*30
-            dir_tlat = (tlat//30)*30
+            dir_tlon = (tlon//dres)*dres
+            dir_tlat = (tlat//dres)*dres
 
             abstlon = abs(dir_tlon)
             lonstr  = '{:03d}'.format(abstlon)
@@ -297,15 +300,16 @@ def _get_ASTER_dem_filenames(dem_file_template,corners):
     # dem_file_template is assumed to have form of:
     # 'my_path/ASTGTMV003_TileTag_dem.nc'
 
-    efiles = []
+    # tiles are 1 x 1 degree
+    ares = 1
 
     # round to correct numbers that are just slightly less than integer
     sigfigs = 6
     ll_corner = [np.round(corners[0][0],sigfigs),np.round(corners[0][1],sigfigs)]
     ur_corner = [np.round(corners[-1][0],sigfigs),np.round(corners[-1][1],sigfigs)]
     
-    lonmin, lonmax = int((ll_corner[0]//1)*1), int((ur_corner[0]//1)*1)
-    latmin, latmax = int((ll_corner[1]//1)*1), int((ur_corner[1]//1)*1)
+    lonmin, lonmax = int((ll_corner[0]//ares)*ares), int((ur_corner[0]//ares)*ares)
+    latmin, latmax = int((ll_corner[1]//ares)*ares), int((ur_corner[1]//ares)*ares)
     
     # if right boundary is multiple of tile resolution, exclude it
     if (ur_corner[0]-lonmax) == 0.0:
@@ -322,16 +326,17 @@ def _get_ASTER_dem_filenames(dem_file_template,corners):
     if lonmax < lonmin:
         lonmax += 360
     
-    nlon = lonmin + np.arange((lonmax - lonmin)//1 + lnpad)*1
-    nlat = latmin + np.arange((latmax - latmin)//1 + ltpad)*1
+    nlon = lonmin + np.arange((lonmax - lonmin)//ares + lnpad)*ares
+    nlat = latmin + np.arange((latmax - latmin)//ares + ltpad)*ares
 
+    efiles = []
     for lonc in nlon:
         for latc in nlat:
     
-            tlon = int((lonc//1)*1)
+            tlon = int((lonc//ares)*ares)
             if tlon >= 180:
                 tlon -= 360
-            tlat = int((latc//1)*1)
+            tlat = int((latc//ares)*ares)
 
             abstlon = abs(tlon)
             lonstr  = '{:03d}'.format(abstlon)
