@@ -212,10 +212,6 @@ for j in range(jstart,jend):
     for i in range(istart,iend):
         if landmask[j,i] == 1:
             ji_pairs.append([j,i])
-
-#debug
-ji_pairs = [[181,240]]
-
             
 print('number of points ',len(ji_pairs),'\n')
     

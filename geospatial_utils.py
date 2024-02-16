@@ -99,9 +99,15 @@ def blend_edges(ifld,n=10):
 
     return fld
 
-def arg_closest_point(point,array):
+def arg_closest_point(point,array,radial=False):
     # find closest value in an array using 32 bit precision
-    return np.argmin(np.abs(np.float32(point) - np.float32(array)))
+    if radial:
+        # unit are degrees
+        d = np.power(np.cos(dtr*np.float32(point))-np.cos(dtr*np.float32(array)),2) \
+            +np.power(np.sin(dtr*np.float32(point))-np.sin(dtr*np.float32(array)),2)
+        return np.argmin(np.abs(d))
+    else:
+        return np.argmin(np.abs(np.float32(point) - np.float32(array)))
 
 def calc_gradient(z,lon,lat,method='Horn1981'):
     if method not in ['Horn1981','O1']:

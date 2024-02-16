@@ -169,8 +169,9 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
     from geospatial_utils import arg_closest_point
     
     # Determine dem filenames
+    # MERIT filenames indicate lower left corner of tile
     demfiles = _get_MERIT_dem_filenames(dem_file_template,corners)
-    
+
     if demfiles.size > 0:
         validDEM = True
     else:
@@ -192,6 +193,10 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
         ys = ds.RasterYSize
         x  = ds.GetGeoTransform()
         x0, y0, dx, dy = x[0], x[3], x[1], x[5]
+        # convert longitude to [0,360]
+        if x0 < 0:
+            x0 += 360
+
         mlon = (x0+0.5*dx) + dx*np.arange(xs)
         mlat = (y0+0.5*dy) + dy*np.arange(ys)
         dmlon = np.abs(mlon[0]-mlon[1])
@@ -200,7 +205,7 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
         # ensure zero is properly accounted for, so 0 is not set to 360
         less_than_zero = -1e-8
         mlon[mlon < less_than_zero] += 360
-        
+
         # convert latitude to S->N
         mlat = np.flipud(mlat)
         merit_elev = np.flipud(merit_elev)
@@ -209,87 +214,97 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
         if zeroFill:
             merit_elev[merit_elev <= fill_value] = 0
 
-        if len(demfiles) > 1:
-            if nfile==0:
-                # for gridcells spanning greenwich
-                dc0 = (corners[2][0] - corners[0][0])
-                if dc0 < 0:
-                    dc0 += 360
+        # create grid that will be filled sequentially by dem files
+        if nfile==0:
+            '''
+            identify closest points to corners on MERIT grid,
+            ensuring that the region they define is larger than
+            the region defined by corners
+            '''
 
-                nx = int(np.ceil(dc0/dmlon))
-                # if integer multiple, add 1 to account for edge value
-                if _is_integer_multiple(dc0,dmlon,eps=1e-8):
-                    nx += 1
-                x0 = int(np.floor(corners[0][0]/dmlon))*dmlon
-                elon = x0 + np.arange(nx)*dmlon
+            # left side
+            n0 = np.float32((corners[0][0] - x0)/dmlon)
+            ex0 = x0 + np.floor(n0)*dmlon
 
-                dc0 = (corners[1][1] - corners[0][1])
-                ny = int(np.ceil(dc0/dmlat))
-                if _is_integer_multiple(dc0,dmlat,eps=1e-8):
-                    ny += 1
-                y0 = int(np.floor(corners[0][1]/dmlat))*dmlat
-                elat = y0 + np.arange(ny)*dmlat
+            # ex0 should be < left edge, and within dmlon
+            delta_lon = (corners[0][0]-ex0)
+            if delta_lon > 360:
+                delta_lon -= 360
+            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
+                print('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
+                stop
 
-                elev = np.zeros((ny,nx))
+            # right side
+            delta_lon = (corners[2][0] - ex0)
+            # for gridcells spanning greenwich
+            if delta_lon < 0:
+                delta_lon += 360
 
-                lonmin,lonmax,latmin,latmax = np.min(elon),np.max(elon),np.min(elat),np.max(elat)
-                if lonmin < 0:
-                    lonmin+=360
-                if lonmax < 0:
-                    lonmax+=360
-                if lonmin > 360:
-                    lonmin-=360
-                if lonmax > 360:
-                    lonmax-=360
+            nx = np.ceil(delta_lon/dmlon).astype(int)
 
-            # if gridcell spans zero longitude, shift coordinates
-            if lonmin > lonmax:
-                elon2 = np.where(elon <= 180,elon,elon - 360)
-                mlon2 = np.where(mlon <= 180,mlon,mlon - 360)
-                i1 = np.argmin(np.abs(np.min(elon2) - mlon2))
-                i2 = np.argmin(np.abs(np.max(elon2) - mlon2))
-                i3 = np.argmin(np.abs(np.min(mlon2[i1:i2+1]) - elon2))
-                i4 = np.argmin(np.abs(np.max(mlon2[i1:i2+1]) - elon2))
-            else:
-                # use arg_closest_point() to compare in single precision
-                i1 = arg_closest_point(np.min(elon), mlon)
-                i2 = arg_closest_point(np.max(elon), mlon)
-                i3 = arg_closest_point(np.min(mlon[i1:i2+1]), elon)
-                i4 = arg_closest_point(np.max(mlon[i1:i2+1]), elon)
+            delta_lon = ((ex0+nx*dmlon)-corners[2][0])
+            if delta_lon > 360:
+                delta_lon -= 360
+            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
+                print(ex0+nx*dmlon,corners[2][0])
+                stop
 
-            j1 = arg_closest_point(np.min(elat), mlat)
-            j2 = arg_closest_point(np.max(elat), mlat)
-            j3 = arg_closest_point(np.min(mlat[j1:j2+1]), elat)
-            j4 = arg_closest_point(np.max(mlat[j1:j2+1]), elat)
-            
-            elon[i3:i4+1] = mlon[i1:i2+1]
-            elat[j3:j4+1] = mlat[j1:j2+1]
-            ny,nx = mlat.size,mlon.size
-            elev[j3:j4+1,i3:i4+1] = merit_elev[j1:j2+1,i1:i2+1]   
+            elon = ex0 + (np.arange(nx)+0.5)*dmlon
 
-        else:
-             # if gridcell spans zero longitude, shift coordinates
-            if corners[0][0] > corners[3][0]:
-                xind = np.where(np.logical_or(mlon >= corners[0][0],mlon < corners[3][0]))[0]
-            else:
-                xind = np.where(np.logical_and(mlon >= corners[0][0],mlon < corners[3][0]))[0]
-            yind = np.where(np.logical_and(mlat >= corners[0][1],mlat < corners[3][1]))[0]
+            # bottom
+            m0 = np.float32((corners[0][1] - y0)/dmlat)
+            ey0 = y0 + np.floor(m0)*dmlat
 
-            if np.logical_and(xind.size > 0,yind.size > 0):
-                i1, i2 = xind[0],xind[-1]
-                j1, j2 = yind[0],yind[-1]
+            # ey0 should be < lower edge, and within dmlat
+            if (corners[0][1]-ey0)/dmlat > 1 or (corners[0][1]-ey0)/dmlat < 0:
+                print('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
+                stop
 
-            elon = mlon[i1:i2+1]
-            elat = mlat[j1:j2+1]
-            ny,nx = mlat.size,mlon.size
-            elev = merit_elev[j1:j2+1,i1:i2+1]
+            # top
+            delta_lat = (corners[1][1] - ey0)
+            ny = np.ceil(delta_lat/dmlat).astype(int)
+
+            if ((ey0+ny*dmlat)-corners[1][1])/dmlat > 1 or ((ey0+ny*dmlat)-corners[1][1])/dmlat < 0:
+                print(ey0+ny*dmlat,corners[1][1])
+                stop
+
+            elat = ey0 + (np.arange(ny)+0.5)*dmlat
+
+            # initialize output array
+            elev = np.zeros((ny,nx))
+
+        # locate dem tile within grid
+
+        # use arg_closest_point() to compare in single precision
+        i1 = arg_closest_point(elon[0],  mlon, radial=True)
+        i2 = arg_closest_point(elon[-1], mlon, radial=True)
+        i3 = arg_closest_point(mlon[i1], elon, radial=True)
+        i4 = arg_closest_point(mlon[i2], elon, radial=True)
+
+        j1 = arg_closest_point(elat[0],  mlat)
+        j2 = arg_closest_point(elat[-1], mlat)
+        j3 = arg_closest_point(mlat[j1], elat)
+        j4 = arg_closest_point(mlat[j2], elat)
+
+        if np.abs(np.mean(elon[i3:i4+1]-mlon[i1:i2+1])) > 1e-10:
+            print(np.mean(elon[i3:i4+1]-mlon[i1:i2+1]))
+            print(elon[i3:i4+1][:10])
+            print(mlon[i1:i2+1][:10])
+        if np.abs(np.mean(elat[j3:j4+1]-mlat[j1:j2+1])) > 1e-10:
+            print(np.mean(elat[j3:j4+1]-mlat[j1:j2+1]))
+            print(elat[j3:j4+1][:10])
+            print(mlat[j1:j2+1][:10])
+
+        elev[j3:j4+1,i3:i4+1] = merit_elev[j1:j2+1,i1:i2+1]
                 
     # Adjust affine to represent actual elev bounds
     # x0,y0 should be top left pixel of raster
     dx, dy = affine.a, affine.e
-    x0, y0 = np.min(elon)-0.5*dx, np.max(elat)-0.5*dy
+    x0, y0 = elon[0]-0.5*np.abs(dx), elat[-1]+0.5*np.abs(dy)
     affine = rasterio.Affine(affine.a,affine.b,x0,affine.d,affine.e,y0)
 
+    # for grids spanning greenwich
+    elon[elon >= 360] -= 360
     # to match affine, convert latitude back to N->S
     elat = np.flipud(elat)
     elev = np.flipud(elev)
@@ -389,13 +404,17 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
         asterfile  = demfiles[nfile]
         f = netcdf4.Dataset(asterfile, 'r')
         # coordinates
-        mlon = np.asarray(f.variables['lon'][:,])
-        mlat = np.asarray(f.variables['lat'][:,])
+        mlon = f.variables['lon'][:,]
+        mlat = f.variables['lat'][:,]
         im  = mlon.size
         jm  = mlat.size
-        aster_elev = np.asarray(f.variables['ASTER_GDEM_DEM'][:,],dtype=float)
+        aster_elev = f.variables['ASTER_GDEM_DEM'][:,].astype(float)
         ys, xs = aster_elev.shape
-        
+        # convert longitude to [0,360]
+        # ensure zero is properly accounted for, so 0 is not set to 360
+        less_than_zero = -1e-8
+        mlon[mlon < less_than_zero] += 360
+
         if nfile == 0:
             fill_value = f.variables['ASTER_GDEM_DEM'].getncattr('_FillValue')
             crs = pyproj.Proj(f.variables['crs'].spatial_ref, preserve_units=True)
@@ -403,14 +422,15 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
             aff = [float(f.variables['crs'].GeoTransform.split()[i]) for i in [1,2,0,4,5,3]]
             affine = rasterio.Affine(*aff)
 
+            x0, y0 = affine.c, affine.f
+            # convert longitude to [0,360]
+            if x0 < 0:
+                x0 += 360
+
         f.close()
 
         dmlon = np.abs(mlon[0]-mlon[1])
         dmlat = np.abs(mlat[0]-mlat[1])
-
-        # ensure zero is properly accounted for, so 0 is not set to 360
-        less_than_zero = -1e-8
-        mlon[mlon < less_than_zero] += 360
 
         # convert latitude to S->N
         mlat = np.flipud(mlat)
@@ -420,92 +440,101 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
         if zeroFill:
             aster_elev[aster_elev <= fill_value] = 0
 
-        if len(demfiles) > 1:
-            if nfile==0:
-                dc0 = (corners[2][0] - corners[0][0])
-                if dc0 < 0:
-                    dc0 += 360
-                
-                nx = int(np.ceil(dc0/dmlon))
-                # if integer multiple, add 1 to account for edge value
-                if _is_integer_multiple(dc0,dmlon,eps=1e-8):
-                    nx += 1
-                x0 = int(np.floor(corners[0][0]/dmlon))*dmlon
-                if x0 < corners[0][0]:
-                    nx += 1
-                elon = x0 + np.arange(nx)*dmlon
+        # create grid that will be filled sequentially by dem files
+        if nfile==0:
+            '''
+            identify closest points to corners on ASTER grid,
+            ensuring that the region they define is larger than
+            the region defined by corners
+            '''
 
-                dc0 = (corners[1][1] - corners[0][1])
-                ny = int(np.ceil(dc0/dmlat))
-                if _is_integer_multiple(dc0,dmlat,eps=1e-8):
-                    ny += 1
-                y0 = int(np.floor(corners[0][1]/dmlat))*dmlat
-                if y0 < corners[0][1]:
-                    ny += 1
-                elat = y0 + np.arange(ny)*dmlat
+            # left side
+            n0 = np.float32((corners[0][0] - x0)/dmlon)
+            ex0 = x0 + np.floor(n0)*dmlon
 
-                elev = np.zeros((ny,nx))
+            # ex0 should be < left edge, and within dmlon
+            delta_lon = (corners[0][0]-ex0)
+            if delta_lon > 360:
+                delta_lon -= 360
+            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
+                print('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
+                stop
 
-                lonmin,lonmax,latmin,latmax = np.min(elon),np.max(elon),np.min(elat),np.max(elat)
+            # right side
+            delta_lon = (corners[2][0] - ex0)
+            # for gridcells spanning greenwich
+            if delta_lon < 0:
+                delta_lon += 360
 
-                if lonmin < 0:
-                    lonmin+=360
-                if lonmax < 0:
-                    lonmax+=360
-                if lonmin > 360:
-                    lonmin-=360
-                if lonmax > 360:
-                    lonmax-=360
+            nx = np.ceil(delta_lon/dmlon).astype(int)
 
-            # if gridcell spans zero longitude, shift coordinates
-            if lonmin > lonmax:
-                elon2 = np.where(elon <= 180,elon,elon - 360)
-                mlon2 = np.where(mlon <= 180,mlon,mlon - 360)
+            delta_lon = ((ex0+nx*dmlon)-corners[2][0])
+            if delta_lon > 360:
+                delta_lon -= 360
+            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
+                print(ex0+nx*dmlon,corners[2][0])
+                stop
 
-                i1 = np.argmin(np.abs(np.min(elon2) - mlon2))
-                i2 = np.argmin(np.abs(np.max(elon2) - mlon2))
-                i3 = np.argmin(np.abs(np.min(mlon2[i1:i2+1]) - elon2))
-                i4 = np.argmin(np.abs(np.max(mlon2[i1:i2+1]) - elon2))
-            else:
-                # use arg_closest_point() to compare in single precision
-                i1 = arg_closest_point(np.min(elon), mlon)
-                i2 = arg_closest_point(np.max(elon), mlon)
-                i3 = arg_closest_point(np.min(mlon[i1:i2+1]), elon)
-                i4 = arg_closest_point(np.max(mlon[i1:i2+1]), elon)
-
-            j1 = arg_closest_point(np.min(elat), mlat)
-            j2 = arg_closest_point(np.max(elat), mlat)
-            j3 = arg_closest_point(np.min(mlat[j1:j2+1]), elat)
-            j4 = arg_closest_point(np.max(mlat[j1:j2+1]), elat)
-
-            elon[i3:i4+1] = mlon[i1:i2+1]
-            elat[j3:j4+1] = mlat[j1:j2+1]
-            ny,nx = mlat.size,mlon.size
-            elev[j3:j4+1,i3:i4+1] = aster_elev[j1:j2+1,i1:i2+1]
-
-        else:
-            # if gridcell spans zero longitude, 
-            if corners[0][0] > corners[3][0]:
-                xind = np.where(np.logical_or(mlon >= corners[0][0],mlon < corners[3][0]))[0]
-            else:
-                xind = np.where(np.logical_and(mlon >= corners[0][0],mlon < corners[3][0]))[0]
-            yind = np.where(np.logical_and(mlat >= corners[0][1],mlat < corners[3][1]))[0]
-
-            if np.logical_and(xind.size > 0,yind.size > 0):
-                i1, i2 = xind[0],xind[-1]
-                j1, j2 = yind[0],yind[-1]
-
-            elon = mlon[i1:i2+1]
-            elat = mlat[j1:j2+1]
-            ny,nx = mlat.size,mlon.size
-            elev = aster_elev[j1:j2+1,i1:i2+1]
+            elon = ex0 + (np.arange(nx)+0.5)*dmlon
+            elon[elon >= 360] -= 360
             
+            # bottom
+            m0 = np.float32((corners[0][1] - y0)/dmlat)
+            ey0 = y0 + np.floor(m0)*dmlat
+
+            # ey0 should be < lower edge, and within dmlat
+            if (corners[0][1]-ey0)/dmlat > 1 or (corners[0][1]-ey0)/dmlat < 0:
+                print('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
+                stop
+
+            # top
+            delta_lat = (corners[1][1] - ey0)
+            ny = np.ceil(delta_lat/dmlat).astype(int)
+
+            if ((ey0+ny*dmlat)-corners[1][1])/dmlat > 1 or ((ey0+ny*dmlat)-corners[1][1])/dmlat < 0:
+                print(ey0+ny*dmlat,corners[1][1])
+                stop
+
+            elat = ey0 + (np.arange(ny)+0.5)*dmlat
+
+            # initialize output array
+            elev = np.zeros((ny,nx))
+
+        # locate dem tile within grid
+
+        # use arg_closest_point() to compare in single precision
+        i1 = arg_closest_point(elon[0],  mlon, radial=True)
+        i2 = arg_closest_point(elon[-1], mlon, radial=True)
+        i3 = arg_closest_point(mlon[i1], elon, radial=True)
+        i4 = arg_closest_point(mlon[i2], elon, radial=True)
+
+        j1 = arg_closest_point(elat[0],  mlat)
+        j2 = arg_closest_point(elat[-1], mlat)
+        j3 = arg_closest_point(mlat[j1], elat)
+        j4 = arg_closest_point(mlat[j2], elat)
+
+        if np.abs(np.mean(elon[i3:i4+1]-mlon[i1:i2+1])) > 1e-10:
+            print(np.mean(elon[i3:i4+1]-mlon[i1:i2+1]))
+            print(elon[i3:i4+1][:10])
+            print(mlon[i1:i2+1][:10])
+            stop
+
+        if np.abs(np.mean(elat[j3:j4+1]-mlat[j1:j2+1])) > 1e-10:
+            print(np.mean(elat[j3:j4+1]-mlat[j1:j2+1]))
+            print(elat[j3:j4+1][:10])
+            print(mlat[j1:j2+1][:10])
+            stop
+
+        elev[j3:j4+1,i3:i4+1] = aster_elev[j1:j2+1,i1:i2+1]
+                
     # Adjust affine to represent actual elev bounds
     # x0,y0 should be top left pixel of raster
     dx, dy = affine.a, affine.e
-    x0, y0 = np.min(elon)-0.5*dx, np.max(elat)-0.5*dy
+    x0, y0 = elon[0]-0.5*np.abs(dx), elat[-1]+0.5*np.abs(dy)
     affine = rasterio.Affine(affine.a,affine.b,x0,affine.d,affine.e,y0)
 
+    # for grids spanning greenwich
+    elon[elon >= 360] -= 360
     # to match affine, convert latitude back to N->S
     elat = np.flipud(elat)
     elev = np.flipud(elev)
