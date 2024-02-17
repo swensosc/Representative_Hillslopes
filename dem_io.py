@@ -276,10 +276,10 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
         # locate dem tile within grid
 
         # use arg_closest_point() to compare in single precision
-        i1 = arg_closest_point(elon[0],  mlon, radial=True)
-        i2 = arg_closest_point(elon[-1], mlon, radial=True)
-        i3 = arg_closest_point(mlon[i1], elon, radial=True)
-        i4 = arg_closest_point(mlon[i2], elon, radial=True)
+        i1 = arg_closest_point(elon[0],  mlon, angular=True)
+        i2 = arg_closest_point(elon[-1], mlon, angular=True)
+        i3 = arg_closest_point(mlon[i1], elon, angular=True)
+        i4 = arg_closest_point(mlon[i2], elon, angular=True)
 
         j1 = arg_closest_point(elat[0],  mlat)
         j2 = arg_closest_point(elat[-1], mlat)
@@ -503,10 +503,10 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
         # locate dem tile within grid
 
         # use arg_closest_point() to compare in single precision
-        i1 = arg_closest_point(elon[0],  mlon, radial=True)
-        i2 = arg_closest_point(elon[-1], mlon, radial=True)
-        i3 = arg_closest_point(mlon[i1], elon, radial=True)
-        i4 = arg_closest_point(mlon[i2], elon, radial=True)
+        i1 = arg_closest_point(elon[0],  mlon, angular=True)
+        i2 = arg_closest_point(elon[-1], mlon, angular=True)
+        i3 = arg_closest_point(mlon[i1], elon, angular=True)
+        i4 = arg_closest_point(mlon[i2], elon, angular=True)
 
         j1 = arg_closest_point(elat[0],  mlat)
         j2 = arg_closest_point(elat[-1], mlat)

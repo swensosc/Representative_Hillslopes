@@ -208,6 +208,7 @@ def CalcGeoparamsGridcell(ji, \
 
     from spatial_scale import IdentifySpatialScaleLaplacian 
     from dem_io import create_subregion_corner_lists
+    from geospatial_utils import arg_closest_point
     from terrain_utils import SpecifyHandBounds, TailIndex
     
     stime = time.time()
@@ -394,13 +395,13 @@ def CalcGeoparamsGridcell(ji, \
                     corners[n][0] -= 360
 
             # pull arrays from center of grid object
-            i1 = np.argmin(np.abs(lc.lon-corners[0][0]))
-            i2 = np.argmin(np.abs(lc.lon-corners[3][0])) + 1
-            j1 = np.argmin(np.abs(lc.lat-corners[3][1]))
-            j2 = np.argmin(np.abs(lc.lat-corners[0][1])) + 1
-            # reverse lon indices if gridcell spans greenwich
-            x = [i1,i2]
-            i1, i2 = np.min(x),np.max(x)
+            # pull arrays from center of grid object
+            i1 = arg_closest_point(corners[0][0],lc.lon,angular=True)
+            i2 = arg_closest_point(corners[3][0],lc.lon,angular=True)
+            j1 = arg_closest_point(corners[0][1],lc.lat)
+            j2 = arg_closest_point(corners[3][1],lc.lat)
+            i1, i2 = np.sort([i1,i2])
+            j2, j1 = np.sort([j1,j2]) # correct order for N->S
 
             # extract geomorphic parameters of the gridcell
             fhand   = lc.hand[j1:j2,i1:i2].flatten()
@@ -987,16 +988,10 @@ class LandscapeCharacteristics(object):
         if not x['validDEM']:
             return -1
 
-        elev,elon,elat,ecrs,daffine = x['elev'],x['lon'],x['lat'],x['crs'],x['affine']
+        elev,elon,elat,ecrs,eaffine = x['elev'],x['lon'],x['lat'],x['crs'],x['affine']
         ejm,eim = elev.shape
 
         self.dem = np.copy(elev)
-        
-        # Adjust affine to represent actual elev bounds
-        # x0,y0 should be top left pixel of raster
-        dx, dy = daffine.a, daffine.e
-        x0, y0 = np.min(elon)-0.5*dx, np.max(elat)-0.5*dy
-        eaffine = rasterio.Affine(daffine.a,daffine.b,x0,daffine.d,daffine.e,y0)
 
         if type(pshape) != type(None):
             value = 1
@@ -1030,7 +1025,8 @@ class LandscapeCharacteristics(object):
         x0, y0, dx, dy = x.c, x.f, x.a, x.e
         ys, xs = grid.shape
         # lon/lat will be center of pixel
-        lon = (x0 + 0.5*dx) + dx*np.arange(xs) 
+        lon = (x0 + 0.5*dx) + dx*np.arange(xs)
+        lon[lon > 360] -= 360
         lat = (y0 + 0.5*dy) + dy*np.arange(ys)
         jm,im = lat.size,lon.size
 

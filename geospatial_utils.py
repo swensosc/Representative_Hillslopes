@@ -99,9 +99,9 @@ def blend_edges(ifld,n=10):
 
     return fld
 
-def arg_closest_point(point,array,radial=False):
+def arg_closest_point(point,array,angular=False):
     # find closest value in an array using 32 bit precision
-    if radial:
+    if angular:
         # unit are degrees
         d = np.power(np.cos(dtr*np.float32(point))-np.cos(dtr*np.float32(array)),2) \
             +np.power(np.sin(dtr*np.float32(point))-np.sin(dtr*np.float32(array)),2)
