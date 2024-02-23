@@ -1,17 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import sys 
-import string 
-import subprocess
-import copy
-import inspect
 import time
 import argparse
 import numpy as np 
 import netCDF4 as netcdf4 
-import matplotlib 
-import matplotlib.pyplot as plt
 from numpy.random import default_rng
 
 from representative_hillslope import CalcGeoparamsGridcell

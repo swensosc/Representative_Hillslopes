@@ -1,10 +1,4 @@
-import sys 
-import string 
-import subprocess
-import time
-import argparse
-import numpy as np 
-import netCDF4 as netcdf4 
+import numpy as np
 
 '''
 routines for modifying geospatial data

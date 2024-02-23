@@ -1,10 +1,4 @@
-import sys 
-import string 
-import subprocess
-import time
-import argparse
-import numpy as np 
-import netCDF4 as netcdf4 
+import numpy as np
 from scipy import optimize,signal
 
 '''
@@ -427,7 +421,7 @@ def IdentifySpatialScaleLaplacian(corners, \
 
     from dem_io import read_MERIT_dem_data, read_ASTER_dem_data
     from geospatial_utils import fit_planar_surface, smooth_2d_array, blend_edges, calc_gradient_horn1981
-    
+
     if maxHillslopeLength==0:
         print('maxHillslopeLength must be > 0')
         stop

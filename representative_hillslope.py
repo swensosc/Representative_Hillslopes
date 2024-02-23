@@ -2,15 +2,11 @@
 # coding: utf-8
 
 import sys 
-import string 
 import subprocess
 import time
-import argparse
-import numpy as np 
-import netCDF4 as netcdf4 
-import pyproj
+import numpy as np
+import netCDF4 as netcdf4
 import rasterio
-import gdal as gd
 
 hdir = 'pysheds_extension/pysheds/'
 sys.path.append(hdir)
