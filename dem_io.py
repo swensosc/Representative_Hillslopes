@@ -10,7 +10,6 @@ from geospatial_utils import arg_closest_point
 '''
 routines related to reading DEM data
 
-_is_integer_multiple:     test whether two floats are integer multiples
 _north_or_south:          return 'n'/'s' label
 _east_or_west:            return 'e'/'w' label
 _get_MERIT_dem_filenames: return filenames required to span region
@@ -22,13 +21,6 @@ read_ASTER_dem_data:     read in DEM data for region
 
 '''
 
-def _is_integer_multiple(x,y,eps=1e-6):
-    # is this just modulo?? test...
-    if np.abs(np.round(x/y)-(x/y)) < eps:
-        return True
-    else:
-        return False
-                
 def _north_or_south(lat):
     if lat >= 0:
         return 'n'
