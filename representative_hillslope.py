@@ -3,6 +3,7 @@
 
 import subprocess
 import time
+import sys
 import numpy as np
 import netCDF4 as netcdf4
 import rasterio
@@ -11,7 +12,9 @@ from geospatial_utils import quadratic, arg_closest_point, identify_basins
 from spatial_scale import IdentifySpatialScaleLaplacian
 from dem_io import create_subregion_corner_lists, read_MERIT_dem_data, read_ASTER_dem_data
 from terrain_utils import SpecifyHandBounds, TailIndex, set_aspect_to_hillslope_mean_serial, set_aspect_to_hillslope_mean_parallel
-from pysheds.pysheds.pgrid import Grid
+
+sys.path.append("pysheds")
+from pysheds.pgrid import Grid
 
 '''
 LandscapeCharacteristics: class for landscape terrain characteristics derived from digital elevation model.
