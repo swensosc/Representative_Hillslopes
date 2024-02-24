@@ -3,7 +3,7 @@ import numpy as np
 import netCDF4 as netcdf4 
 import pyproj
 import rasterio
-import gdal as gd
+from osgeo import gdal as gd
 
 from geospatial_utils import arg_closest_point
 
