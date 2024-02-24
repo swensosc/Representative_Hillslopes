@@ -3,8 +3,8 @@
 
 import time
 import argparse
-import numpy as np 
-import netCDF4 as netcdf4 
+import numpy as np
+import netCDF4 as netcdf4
 from numpy.random import default_rng
 
 from representative_hillslope import CalcGeoparamsGridcell
@@ -25,13 +25,11 @@ cndx = args.cndx
 nChunks = 6
 totalChunks = nChunks*nChunks
 if cndx < 0 or cndx > totalChunks:
-    print('cndx must be 1-{:d}'.format(totalChunks))
-    stop
+    raise RuntimeError('cndx must be 1-{:d}'.format(totalChunks))
 if cndx == 0 and args.pt < 1:
-    print('cndx = 0; select a pt with --pt')
-    stop
+    raise RuntimeError('cndx = 0; select a pt with --pt')
 
-print('Chunk ', cndx)    
+print('Chunk ', cndx)
 chunkLabel = '{:02d}'.format(cndx)
 
 doTimer = args.timer

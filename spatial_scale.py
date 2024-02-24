@@ -29,8 +29,7 @@ re  = 6.371e6
 def _fit_polynomial(x,y,ncoefs,weights=None):
     im = x.size
     if im < ncoefs:
-        print('not enough data to fit '+str(ncoefs)+' coefficients')
-        stop
+        raise RuntimeError('not enough data to fit '+str(ncoefs)+' coefficients')
         #return np.zeros((ncoefs),dtype=np.float64)
         
     coefs = np.zeros((ncoefs),dtype=np.float64)
@@ -43,8 +42,7 @@ def _fit_polynomial(x,y,ncoefs,weights=None):
         gtg = np.dot(np.transpose(g), g)
     else:
         if y.size != weights.size:
-            print('weights length must match data')
-            stop
+            raise RuntimeError('weights length must match data')
             
         gtd = np.dot(np.transpose(g), np.dot(np.diag(weights),y))
         gtg = np.dot(np.transpose(g), np.dot(np.diag(weights),g))
@@ -389,8 +387,7 @@ def _LocatePeak(lambda_1d,ratio_var_to_lambda,maxWavelength=1e6,minWavelength=1,
 
 
     if model == 'None':
-        print('No model selected')
-        stop
+        raise RuntimeError('No model selected')
 
     if verbose:
         print('\nEnd curve fitting')
@@ -423,15 +420,12 @@ def IdentifySpatialScaleLaplacian(corners, \
     '''
 
     if maxHillslopeLength==0:
-        print('maxHillslopeLength must be > 0')
-        stop
+        raise RuntimeError('maxHillslopeLength must be > 0')
     if type(dem_file_template)==type(None):
-        print('no dem file template supplied')
-        stop
+        raise RuntimeError('no dem file template supplied')
 
     if dem_source not in ['MERIT','ASTER']:
-        print('invalid dem source ', dem_source)
-        stop
+        raise RuntimeError('invalid dem source ', dem_source)
 
     if dem_source == 'MERIT':
         x = read_MERIT_dem_data(dem_file_template,corners,zeroFill=True)

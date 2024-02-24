@@ -48,8 +48,7 @@ def CalcRepresentativeHillslopeForm(hillslope_fraction, \
     '''
 
     if form not in ['CircularSection','TriangularSection']:
-        print('Invalid hillsope form')
-        stop
+        raise RuntimeError('Invalid hillsope form')
 
     # angle of section
     alpha = 2.*np.pi*hillslope_fraction
@@ -121,8 +120,7 @@ def CalcRepresentativeHillslopeForm(hillslope_fraction, \
 
     if form == 'TriangularSection':
         if hillslope_fraction > 135/360:
-            print('Hillslope fraction too large for TriangularSection form: ', hillslope_fraction)
-            stop
+            raise RuntimeError('Hillslope fraction too large for TriangularSection form: ', hillslope_fraction)
 
         # calculate estimates of hill ridge-to-valley length
         nlength = []
@@ -289,8 +287,7 @@ def CalcGeoparamsGridcell(ji, \
         ares         = x['res']
 
         if model == 'None':
-            print('No model selected')
-            stop
+            raise RuntimeError('No model selected')
 
         # Set accumulation threshold from spatial scale
         accum_thresh = 0.5*(spatialScale**2)
@@ -965,11 +962,9 @@ class LandscapeCharacteristics(object):
 
         
         if accum_thresh==0:
-            print('accumulation threshold must be > 0')
-            stop
+            raise RuntimeError('accumulation threshold must be > 0')
         if type(dem_file_template)==type(None):
-            print('no dem file template supplied')
-            stop
+            raise RuntimeError('no dem file template supplied')
 
         if dem_source == 'MERIT':
             x = read_MERIT_dem_data(dem_file_template,corners,zeroFill=True)

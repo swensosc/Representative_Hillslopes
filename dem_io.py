@@ -227,8 +227,7 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
             if delta_lon > 360:
                 delta_lon -= 360
             if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
-                print('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
-                stop
+                raise RuntimeError('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
 
             # right side
             delta_lon = (corners[2][0] - ex0)
@@ -241,9 +240,8 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
             delta_lon = ((ex0+nx*dmlon)-corners[2][0])
             if delta_lon > 360:
                 delta_lon -= 360
-            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
-                print(ex0+nx*dmlon,corners[2][0])
-                stop
+            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0: raise RuntimeError(ex0+nx*dmlon,corners[2][0])
+
 
             elon = ex0 + (np.arange(nx)+0.5)*dmlon
 
@@ -253,16 +251,14 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
 
             # ey0 should be < lower edge, and within dmlat
             if (corners[0][1]-ey0)/dmlat > 1 or (corners[0][1]-ey0)/dmlat < 0:
-                print('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
-                stop
+                raise RuntimeError('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
 
             # top
             delta_lat = (corners[1][1] - ey0)
             ny = np.ceil(delta_lat/dmlat).astype(int)
 
             if ((ey0+ny*dmlat)-corners[1][1])/dmlat > 1 or ((ey0+ny*dmlat)-corners[1][1])/dmlat < 0:
-                print(ey0+ny*dmlat,corners[1][1])
-                stop
+                raise RuntimeError(ey0+ny*dmlat,corners[1][1])
 
             elat = ey0 + (np.arange(ny)+0.5)*dmlat
 
@@ -450,8 +446,7 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
             if delta_lon > 360:
                 delta_lon -= 360
             if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
-                print('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
-                stop
+                raise RuntimeError('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
 
             # right side
             delta_lon = (corners[2][0] - ex0)
@@ -465,8 +460,7 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
             if delta_lon > 360:
                 delta_lon -= 360
             if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
-                print(ex0+nx*dmlon,corners[2][0])
-                stop
+                raise RuntimeError(ex0+nx*dmlon,corners[2][0])
 
             elon = ex0 + (np.arange(nx)+0.5)*dmlon
             elon[elon >= 360] -= 360
@@ -477,16 +471,14 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
 
             # ey0 should be < lower edge, and within dmlat
             if (corners[0][1]-ey0)/dmlat > 1 or (corners[0][1]-ey0)/dmlat < 0:
-                print('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
-                stop
+                raise RuntimeError('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
 
             # top
             delta_lat = (corners[1][1] - ey0)
             ny = np.ceil(delta_lat/dmlat).astype(int)
 
             if ((ey0+ny*dmlat)-corners[1][1])/dmlat > 1 or ((ey0+ny*dmlat)-corners[1][1])/dmlat < 0:
-                print(ey0+ny*dmlat,corners[1][1])
-                stop
+                raise RuntimeError(ey0+ny*dmlat,corners[1][1])
 
             elat = ey0 + (np.arange(ny)+0.5)*dmlat
 
@@ -509,14 +501,12 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
         if np.abs(np.mean(elon[i3:i4+1]-mlon[i1:i2+1])) > 1e-10:
             print(np.mean(elon[i3:i4+1]-mlon[i1:i2+1]))
             print(elon[i3:i4+1][:10])
-            print(mlon[i1:i2+1][:10])
-            stop
+            raise RuntimeError(mlon[i1:i2+1][:10])
 
         if np.abs(np.mean(elat[j3:j4+1]-mlat[j1:j2+1])) > 1e-10:
             print(np.mean(elat[j3:j4+1]-mlat[j1:j2+1]))
             print(elat[j3:j4+1][:10])
-            print(mlat[j1:j2+1][:10])
-            stop
+            raise RuntimeError(mlat[j1:j2+1][:10])
 
         elev[j3:j4+1,i3:i4+1] = aster_elev[j1:j2+1,i1:i2+1]
                 

@@ -105,8 +105,7 @@ def arg_closest_point(point,array,angular=False):
 
 def calc_gradient(z,lon,lat,method='Horn1981'):
     if method not in ['Horn1981','O1']:
-        print('method must be either Horn1981 or O1')
-        stop
+        raise RuntimeError('method must be either Horn1981 or O1')
 
     if method == 'O1':
         dzdy2,dzdx2 = np.gradient(z)

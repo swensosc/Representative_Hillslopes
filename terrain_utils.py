@@ -333,8 +333,7 @@ def SpecifyHandBounds(fhand,faspect,aspect_bins,bin1_max=2, \
             hand_bin_bounds = [0,bin1_max,b33,b66,1e6]
 
     if (len(hand_bin_bounds) - 1) != 4:
-        print('bad hand bounds')
-        stop
+        raise RuntimeError('bad hand bounds')
     return hand_bin_bounds
                 
 def SpecifyHandBoundsNoAspect(fhand,nbins=4):
@@ -358,8 +357,7 @@ def SpecifyHandBoundsNoAspect(fhand,nbins=4):
     hand_bin_bounds = np.asarray([0]+[hand_sorted[int(quartiles[qi]*hand_sorted.size-1)] for qi in range(quartiles.size)])
 
     if (len(hand_bin_bounds) - 1) != nbins:
-        print('bad hand bounds')
-        stop
+        raise RuntimeError('bad hand bounds')
     
     return hand_bin_bounds
                 
