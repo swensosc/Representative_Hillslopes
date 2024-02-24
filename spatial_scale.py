@@ -1,6 +1,9 @@
 import numpy as np
 from scipy import optimize,signal
 
+from dem_io import read_MERIT_dem_data, read_ASTER_dem_data
+from geospatial_utils import fit_planar_surface, smooth_2d_array, blend_edges, calc_gradient_horn1981
+
 '''
 _fit_polynomial:         calculate polynomial coefficients
 _synth_polynomial:       reconstruct polynomial from coefficients
@@ -418,9 +421,6 @@ def IdentifySpatialScaleLaplacian(corners, \
     Identify the spatial scale at which the input DEM 
     exhibits the largest divergence/convergence of topographic gradient.
     '''
-
-    from dem_io import read_MERIT_dem_data, read_ASTER_dem_data
-    from geospatial_utils import fit_planar_surface, smooth_2d_array, blend_edges, calc_gradient_horn1981
 
     if maxHillslopeLength==0:
         print('maxHillslopeLength must be > 0')

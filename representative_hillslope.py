@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import sys 
 import subprocess
 import time
 import numpy as np
 import netCDF4 as netcdf4
 import rasterio
 
-hdir = 'pysheds_extension/pysheds/'
-sys.path.append(hdir)
-from pgrid import Grid
+from geospatial_utils import quadratic, arg_closest_point, identify_basins
+from spatial_scale import IdentifySpatialScaleLaplacian
+from dem_io import create_subregion_corner_lists, read_MERIT_dem_data, read_ASTER_dem_data
+from terrain_utils import SpecifyHandBounds, TailIndex, set_aspect_to_hillslope_mean_serial, set_aspect_to_hillslope_mean_parallel
+from pysheds.pysheds.pgrid import Grid
 
 '''
 LandscapeCharacteristics: class for landscape terrain characteristics derived from digital elevation model.
@@ -42,8 +43,6 @@ def CalcRepresentativeHillslopeForm(hillslope_fraction, \
     node distances will be median distance of column
     width will be width at lower edge
     '''
-
-    from geospatial_utils import quadratic
 
     if form not in ['CircularSection','TriangularSection']:
         print('Invalid hillsope form')
@@ -202,11 +201,6 @@ def CalcGeoparamsGridcell(ji, \
                       verbose=False, \
                       printFlush=True):
 
-    from spatial_scale import IdentifySpatialScaleLaplacian 
-    from dem_io import create_subregion_corner_lists
-    from geospatial_utils import arg_closest_point
-    from terrain_utils import SpecifyHandBounds, TailIndex
-    
     stime = time.time()
     j,i = ji
     if verbose:
@@ -965,9 +959,7 @@ class LandscapeCharacteristics(object):
                                             pshape=None, \
                                             verbose=False):
 
-        from dem_io import read_MERIT_dem_data,read_ASTER_dem_data
-        from geospatial_utils import identify_basins
-        from terrain_utils import set_aspect_to_hillslope_mean_serial,set_aspect_to_hillslope_mean_parallel
+
         
         if accum_thresh==0:
             print('accumulation threshold must be > 0')

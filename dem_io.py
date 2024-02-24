@@ -5,6 +5,8 @@ import pyproj
 import rasterio
 import gdal as gd
 
+from geospatial_utils import arg_closest_point
+
 '''
 routines related to reading DEM data
 
@@ -162,8 +164,6 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
 
 def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
 
-    from geospatial_utils import arg_closest_point
-    
     # Determine dem filenames
     # MERIT filenames indicate lower left corner of tile
     demfiles = _get_MERIT_dem_filenames(dem_file_template,corners)
@@ -379,9 +379,6 @@ def _get_ASTER_dem_filenames(dem_file_template,corners):
     return efiles
 
 def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
-
-    from geospatial_utils import arg_closest_point
-
     # Determine dem filenames
     demfiles = _get_ASTER_dem_filenames(dem_file_template,corners)
 
