@@ -13,14 +13,8 @@ from spatial_scale import IdentifySpatialScaleLaplacian
 from dem_io import create_subregion_corner_lists, read_MERIT_dem_data, read_ASTER_dem_data
 from terrain_utils import SpecifyHandBounds, TailIndex, set_aspect_to_hillslope_mean_serial, set_aspect_to_hillslope_mean_parallel
 
-#sys.path.append("pysheds")
-#from pysheds.pgrid import Grid
-
-# for testing
-hdir = '/project/tss/swensosc/pylibs/pysheds_extension/pysheds/'
-sys.path.append(hdir)
+sys.path.append("pysheds")
 from pysheds.pgrid import Grid
-
 
 '''
 LandscapeCharacteristics: class for landscape terrain characteristics derived from digital elevation model.
