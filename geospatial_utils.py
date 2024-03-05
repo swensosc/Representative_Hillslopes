@@ -221,7 +221,7 @@ def expand_mask_buffer(mask,buf=1):
     
     return omask
 
-def identify_basins(dem,basin_thresh=0.25,niter=30,buf=10):
+def identify_basins(dem,basin_thresh=0.25,niter=10,buf=1):
     # create basin mask, 1 in basin, 0 outside of basin
     # flat areas often have large dtnd and small hand values
     # due to flowpaths in flooded/inflated part of dem
@@ -229,28 +229,27 @@ def identify_basins(dem,basin_thresh=0.25,niter=30,buf=10):
 
     # find most common elevation value
     udem,ucnt = np.unique(dem,return_counts=True)
-    umax = np.argmax(ucnt)
-    dem_max_value = udem[umax]
-    dem_max_fraction = ucnt[umax]/dem.size
+    ufrac = ucnt/dem.size
+    ind = np.where(ufrac > basin_thresh)[0]
 
-    # use eps to catch roundoff values
-    eps = 1e-2
-    # if elevation is zero, assume open water and tighten tolerance
-    if np.abs(dem_max_value) < eps:
-        eps = 1e-6
-
-    # flag areas with common elevation as a basin or open water
-    if dem_max_fraction >= basin_thresh:
-        imask[np.abs(dem-dem_max_value) < eps] = 1
-
-    for n in range(niter):
-        imask = expand_mask_buffer(imask,buf=buf)
-
-        # remove points each iteration
-        imask[np.abs(dem-dem_max_value) >= eps] = 0
+    if ind.size > 0:
+        for i in ind:
+            # if elevation is zero, assume open water and tighten tolerance
+            eps = 1e-2
+            if np.abs(udem[i]) < eps:
+                eps = 1e-6
+            imask[np.abs(dem-udem[i]) < eps] = 1
 
         # remove isolated points
-        imask[_four_point_laplacian(imask) >= 3] = 0
+        for n in range(niter):
+            imask = expand_mask_buffer(imask,buf=buf)
+            # remove points each iteration
+            eps = 1e-2
+            for i in ind:
+                # if elevation is zero, assume open water and tighten tolerance
+                if np.abs(udem[i]) < eps:
+                    eps = 1e-6
+                imask[_four_point_laplacian(1-imask) >= 3] = 0
 
     return imask
     

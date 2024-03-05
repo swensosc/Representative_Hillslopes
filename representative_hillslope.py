@@ -535,7 +535,7 @@ def CalcGeoparamsGridcell(ji, \
             # identify basins and remove points (inputs are 2d arrays)
             if flagBasins:
                 stimefb = time.time()
-                basin_mask = lc.IdentifyBasins()[j1:j2,i1:i2]
+                basin_mask = identify_basins(lc.dem)[j1:j2,i1:i2]
                 
                 ind = np.where(basin_mask.flat == 0)[0]    
                 # set cutoff fraction
@@ -1120,10 +1120,6 @@ class LandscapeCharacteristics(object):
         network and derived quantities describing landscape 
         characteristics
 
-        IdentifyBasins
-        Identify extensive flat areas ("basins") that may cause 
-        large distances
-
     """
 
     def __init__(self):
@@ -1467,35 +1463,3 @@ class LandscapeCharacteristics(object):
 
         return 0
 
-    def IdentifyBasins(self,basin_thresh=0.25,niter=30,buf=1):
-        # create basin mask, 1 in basin, 0 outside of basin
-        # flat areas often have large dtnd and small hand values
-        # due to flowpaths in flooded/inflated part of dem
-        imask = np.zeros(self.dem.shape)
-
-        # find most common elevation value
-        udem,ucnt = np.unique(self.dem,return_counts=True)
-        ufrac = ucnt/self.dem.size
-        ind = np.where(ufrac > basin_thresh)[0]
-
-        if ind.size > 0:
-            for i in ind:
-                # if elevation is zero, assume open water and tighten tolerance
-                eps = 1e-2
-                if np.abs(udem[i]) < eps:
-                    eps = 1e-6
-                imask[np.abs(self.dem-udem[i]) < eps] = 1
-
-            # remove isolated points
-            for n in range(niter):
-                imask = expand_mask_buffer(imask,buf=buf)
-                # remove points each iteration
-                eps = 1e-2
-                for i in ind:
-                    # if elevation is zero, assume open water and tighten tolerance
-                    if np.abs(udem[i]) < eps:
-                        eps = 1e-6
-                    imask[four_point_laplacian(1-imask) >= 3] = 0
-
-        return imask
-    
