@@ -20,11 +20,21 @@ parser.add_argument("--pt", help="location", nargs='?',type=int,default=0)
 parser.add_argument("--form", help="hillslope form", nargs='?',type=int,default=0)
 parser.add_argument("--sfcfile", help="Surface dataset from which grid should be taken",
                     default="surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc")
+
+dem_source_default = "MERIT"
+dem_data_path_default = os.path.join("MERIT", "data")
+parser.add_argument("--dem-source", "--dem_source", type=str, default=dem_source_default,
+                    help=f"DEM to use (default: {dem_source_default})")
+parser.add_argument("--dem-data-path", type=str, default=dem_data_path_default,
+                    help=f"Path to DEM source data (default: {dem_data_path_default})")
+
 args = parser.parse_args()
 
 # Check arguments
 if not os.path.exists(args.sfcfile):
     raise FileNotFoundError(f"sfcfile not found: {args.sfcfile}")
+if not os.path.exists(args.dem_data_path):
+    raise FileNotFoundError(f"dem_data_path not found: {args.dem_data_path}")
 
 cndx = args.cndx
 
@@ -107,18 +117,17 @@ asp_name = ['north','east','south','west']
 ncolumns_per_gridcell = naspect * nbins
 nhillslope = naspect
 
-# use MERIT dem
-dem_source = 'MERIT'
-
 # define regions from gridcells in surface data file
 odir = './'
 outfile = odir + 'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc'
         
 # Select DEM source data
-if dem_source == 'MERIT':
-    efile0 = 'MERIT/data/elv_DirTag/TileTag_elv.tif'
+if args.dem_source == 'MERIT':
+    efile0 = os.path.join(args.dem_data_path, "elv_DirTag", "TileTag_elv.tif")
     outfile = outfile.replace('.nc','_MERIT.nc')
     print('\ndem template files: ',efile0,'\n')
+else:
+    raise ValueError(f"Invalid setting for --dem-source: {args.dem_source}")
 
 f = netcdf4.Dataset(args.sfcfile, 'r')
 slon2d = np.asarray(f.variables['LONGXY'][:,])
@@ -241,7 +250,7 @@ for k in ji_pairs:
                               dem_file_template=efile0, \
                               detrendElevation=detrendElevation, \
                               nlambda=nlambda, \
-                              dem_source=dem_source, \
+                              dem_source=args.dem_source, \
                               flagBasins=flagBasins, \
                               outfile_template=outfile, \
                               overwrite=args.overwrite, \
