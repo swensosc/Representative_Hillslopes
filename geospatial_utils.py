@@ -12,7 +12,7 @@ std_dev:                standard deviation
 quadratic:              return a solution of a quadratic equation
 _four_point_laplacian:  calculate laplacian using four neighboring points
 _inside_indices_buffer: return indices excluding those in a buffer around array edges
-expand_mask_buffer:     expand a mask spatially
+_expand_mask_buffer:     expand a mask spatially
 
 '''    
 
@@ -200,7 +200,7 @@ def _inside_indices_buffer(data, buf=1, mask=None):
 
     return inside
 
-def expand_mask_buffer(mask,buf=1):
+def _expand_mask_buffer(mask,buf=1):
     omask = np.copy(mask)
     # this will use less memory by not accumulating all indices
     # prior to assigning mask points to 1
@@ -241,7 +241,7 @@ def identify_basins(dem,basin_thresh=0.25,niter=10,buf=1):
 
         # remove isolated points
         for n in range(niter):
-            imask = expand_mask_buffer(imask,buf=buf)
+            imask = _expand_mask_buffer(imask,buf=buf)
             # remove points each iteration
             eps = 1e-2
             for i in ind:
