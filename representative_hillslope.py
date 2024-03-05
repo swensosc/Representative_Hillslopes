@@ -750,33 +750,33 @@ def CalcGeoparamsGridcell(ji, \
                         if hillslope_form == 'Trapezoidal':
                             # preserve relative areas
                             area_fraction = np.sum(farea[cind])/np.sum(farea[aind])
-                            area[asp_ndx*nbins+n] = trap_area * area_fraction
+                            area[asp_ndx*nhand_bins+n] = trap_area * area_fraction
 
                             # lower edge widths
-                            da = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n])
+                            da = np.sum(area[asp_ndx*nhand_bins:asp_ndx*nhand_bins+n])
                             le = quadratic([trap_slope,trap_width,-da])
                             we = trap_width + le*trap_slope*2
-                            width[asp_ndx*nbins+n] = we
+                            width[asp_ndx*nhand_bins+n] = we
 
                             # median distances
-                            da = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n+1])-area[asp_ndx*nbins+n]/2
+                            da = np.sum(area[asp_ndx*nhand_bins:asp_ndx*nhand_bins+n+1])-area[asp_ndx*nhand_bins+n]/2
                             ld = quadratic([trap_slope,trap_width,-da])
-                            dtnd[asp_ndx*nbins+n] = ld
+                            dtnd[asp_ndx*nhand_bins+n] = ld
                             
                         if hillslope_form == 'AnnularSection':
                             # preserve relative areas
                             area_fraction = np.sum(farea[cind])/np.sum(farea[aind])
-                            area[asp_ndx*nbins+n] = ann_area * area_fraction
+                            area[asp_ndx*nhand_bins+n] = ann_area * area_fraction
 
                             # lower edge distances and widths
-                            asum = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n])
+                            asum = np.sum(area[asp_ndx*nhand_bins:asp_ndx*nhand_bins+n])
                             ri = np.sqrt((Asec-asum)*(2/alpha))
-                            width[asp_ndx*nbins+n] = alpha*ri
+                            width[asp_ndx*nhand_bins+n] = alpha*ri
 
                             # median distances and widths
-                            asum = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n+1])-area[asp_ndx*nbins+n]/2
+                            asum = np.sum(area[asp_ndx*nhand_bins:asp_ndx*nhand_bins+n+1])-area[asp_ndx*nhand_bins+n]/2
                             ri = np.sqrt((Asec-asum)*(2/alpha))
-                            dtnd[asp_ndx*nbins+n] = (hill_length - ri)
+                            dtnd[asp_ndx*nhand_bins+n] = (hill_length - ri)
                         
                         '''
                         aspect needs to be averaged using circular 
@@ -956,6 +956,7 @@ def CalcGeoparamsGridcell(ji, \
             timetag=subprocess.Popen(command,stdout=subprocess.PIPE,shell='True').communicate()[0].strip().decode()
 
             w = netcdf4.Dataset(outfile,'w')
+            print(f"outfile: {outfile}")
             w.creation_date = timetag
 
             w.createDimension('lsmlon',1)
