@@ -13,8 +13,14 @@ from spatial_scale import IdentifySpatialScaleLaplacian
 from dem_io import create_subregion_corner_lists, read_MERIT_dem_data, read_ASTER_dem_data
 from terrain_utils import SpecifyHandBounds, TailIndex, set_aspect_to_hillslope_mean_serial, set_aspect_to_hillslope_mean_parallel
 
-sys.path.append("pysheds")
+#sys.path.append("pysheds")
+#from pysheds.pgrid import Grid
+
+# for testing
+hdir = '/project/tss/swensosc/pylibs/pysheds_extension/pysheds/'
+sys.path.append(hdir)
 from pysheds.pgrid import Grid
+
 
 '''
 LandscapeCharacteristics: class for landscape terrain characteristics derived from digital elevation model.
@@ -36,8 +42,7 @@ re  = 6.371e6
 
 def calc_width_parameters(dtnd,area,form='trapezoid',useAreaWeight=True,mindtnd=0,nhisto=10):
     if form not in ['trapezoid','annular']:
-        print('form must be one of: ',['trapezoid','annular'])
-        stop
+        raise RuntimeError('form must be one of: ',['trapezoid','annular'])
 
     dtndbins = np.linspace(mindtnd,np.max(dtnd)+1,nhisto+1)
     binwidth = dtndbins[1:]-dtndbins[:-1]
@@ -90,9 +95,7 @@ def calc_width_parameters(dtnd,area,form='trapezoid',useAreaWeight=True,mindtnd=
 def _fit_polynomial(x,y,ncoefs,weights=None):
     im = x.size
     if im < ncoefs:
-        print('not enough data to fit '+str(ncoefs)+' coefficients')
-        stop
-        #return np.zeros((ncoefs),dtype=np.float64)
+        raise RuntimeError('not enough data to fit '+str(ncoefs)+' coefficients')
         
     coefs = np.zeros((ncoefs),dtype=np.float64)
     g = np.zeros((im,ncoefs),dtype=np.float64)
@@ -104,8 +107,7 @@ def _fit_polynomial(x,y,ncoefs,weights=None):
         gtg = np.dot(np.transpose(g), g)
     else:
         if y.size != weights.size:
-            print('weights length must match data')
-            stop
+            raise RuntimeError('weights length must match data')
             
         gtd = np.dot(np.transpose(g), np.dot(np.diag(weights),y))
         gtg = np.dot(np.transpose(g), np.dot(np.diag(weights),g))

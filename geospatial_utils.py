@@ -148,9 +148,8 @@ def quadratic(coefs,root=0,eps=1e-6,verbose=False):
         if np.abs(bk**2-4*ak*ck) < eps:
             ck = bk**2/(4*ak) * (1-eps)
         else:
-            print('cannot solve quadratic with these values \
+            raise RuntimeError('cannot solve quadratic with these values \
             {:.2f}  {:.2f}  {:.2f}'.format(ak,bk,ck))
-            stop
     
     dm_roots = [(-bk + np.sqrt(bk**2-4*ak*ck))/(2*ak), \
                 (-bk - np.sqrt(bk**2-4*ak*ck))/(2*ak)]
