@@ -15,4 +15,5 @@ dependencies:
   - python
   - rasterio
   - scipy
+  - scikit-image
 
