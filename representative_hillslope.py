@@ -1,21 +1,20 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import sys 
-import string 
 import subprocess
 import time
-import argparse
-import numpy as np 
-import netCDF4 as netcdf4 
-import pyproj
+import sys
+import numpy as np
+import netCDF4 as netcdf4
 import rasterio
-import gdal as gd
-from geospatial_utils import quadratic, expand_mask_buffer
 
-hdir = 'pysheds_extension/pysheds/'
-sys.path.append(hdir)
-from pgrid import Grid
+from geospatial_utils import quadratic, arg_closest_point, identify_basins
+from spatial_scale import IdentifySpatialScaleLaplacian
+from dem_io import create_subregion_corner_lists, read_MERIT_dem_data, read_ASTER_dem_data
+from terrain_utils import SpecifyHandBounds, TailIndex, set_aspect_to_hillslope_mean_serial, set_aspect_to_hillslope_mean_parallel
+
+sys.path.append("pysheds")
+from pysheds.pgrid import Grid
 
 '''
 LandscapeCharacteristics: class for landscape terrain characteristics derived from digital elevation model.
@@ -172,11 +171,8 @@ def CalcRepresentativeHillslopeForm(hillslope_fraction, \
     width will be width at lower edge
     '''
 
-    from geospatial_utils import quadratic
-
     if form not in ['CircularSection','TriangularSection']:
-        print('Invalid hillsope form')
-        stop
+        raise RuntimeError('Invalid hillsope form')
 
     # angle of section
     alpha = 2.*np.pi*hillslope_fraction
@@ -248,8 +244,7 @@ def CalcRepresentativeHillslopeForm(hillslope_fraction, \
 
     if form == 'TriangularSection':
         if hillslope_fraction > 135/360:
-            print('Hillslope fraction too large for TriangularSection form: ', hillslope_fraction)
-            stop
+            raise RuntimeError('Hillslope fraction too large for TriangularSection form: ', hillslope_fraction)
 
         # calculate estimates of hill ridge-to-valley length
         nlength = []
@@ -331,11 +326,6 @@ def CalcGeoparamsGridcell(ji, \
                       verbose=False, \
                       printFlush=True):
 
-    from spatial_scale import IdentifySpatialScaleLaplacian 
-    from dem_io import create_subregion_corner_lists
-    from geospatial_utils import arg_closest_point
-    from terrain_utils import SpecifyHandBounds, TailIndex
-    
     stime = time.time()
     j,i = ji
     if verbose:
@@ -421,8 +411,7 @@ def CalcGeoparamsGridcell(ji, \
         ares         = x['res']
 
         if model == 'None':
-            print('No model selected')
-            stop
+            raise RuntimeError('No model selected')
 
         # Set accumulation threshold from spatial scale
         accum_thresh = 0.5*(spatialScale**2)
@@ -1163,16 +1152,12 @@ class LandscapeCharacteristics(object):
                                             pshape=None, \
                                             verbose=False):
 
-        from dem_io import read_MERIT_dem_data,read_ASTER_dem_data
-        from geospatial_utils import identify_basins
-        from terrain_utils import set_aspect_to_hillslope_mean_serial,set_aspect_to_hillslope_mean_parallel
+
         
         if accum_thresh==0:
-            print('accumulation threshold must be > 0')
-            stop
+            raise RuntimeError('accumulation threshold must be > 0')
         if type(dem_file_template)==type(None):
-            print('no dem file template supplied')
-            stop
+            raise RuntimeError('no dem file template supplied')
 
         if dem_source == 'MERIT':
             x = read_MERIT_dem_data(dem_file_template,corners,zeroFill=True)

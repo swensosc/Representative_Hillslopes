@@ -1,10 +1,4 @@
-import sys 
-import string 
-import subprocess
-import time
-import argparse
-import numpy as np 
-import netCDF4 as netcdf4 
+import numpy as np
 from scipy.stats import expon
 from multiprocessing import Pool
 from functools import partial
@@ -35,8 +29,6 @@ def calc_network_length(channel_ids,channel_coords,dem,fdir,lon,lat,\
                         latdir='south_to_north',verbose=False):
     dirmap=(64, 128, 1, 2, 4, 8, 16, 32)
     dir_to_index_dict  = {dirmap[n]:n for n in range(len(dirmap))}
-    r_dirmap = np.array(dirmap)[[4, 5, 6, 7, 0, 1, 2, 3]].tolist()
-    rdir_to_index_dict = {r_dirmap[n]:n for n in range(len(r_dirmap))}
 
     fjm,fim = dem.shape
     dmask = np.zeros((fjm,fim))
@@ -188,7 +180,7 @@ def set_aspect_to_hillslope_mean_parallel(drainage_id,aspect,hillslope,npools=4,
             for x2 in x:
                 for tmp in x2:
                     if len(tmp) > 0:
-                        k1, mean_aspect, ind = tmp[1:]
+                        _, mean_aspect, ind = tmp[1:]
                         aspect2d_catchment_mean.flat[cind[ind]] = mean_aspect
     finally:
         pool1.close()
@@ -256,7 +248,7 @@ def SpecifyHandBounds(fhand,faspect,aspect_bins,bin1_max=2, \
     # available methods: fit hand, explicit sum, fast sort
 
     if BinMethod == 'fithand':
-        fit_loc, fit_beta = expon.fit(fhand[fhand > 0].flat/std_hand)
+        _, fit_beta = expon.fit(fhand[fhand > 0].flat/std_hand)
         xbin1 = np.min([-fit_beta*np.log(1/4),bin1_max/std_hand])
         x33 = -fit_beta*np.log(2/3) + xbin1
         x66 = -fit_beta*np.log(1/3) + xbin1
@@ -272,7 +264,6 @@ def SpecifyHandBounds(fhand,faspect,aspect_bins,bin1_max=2, \
             hbins[:-1] = np.linspace(0,hbin1,nhist)
 
         histo_hand = np.zeros((nhist))
-        hbins_mid = 0.5*(hbins[:-1]+hbins[1:])
         for h in range(nhist):
             hind = np.where(np.logical_and(fhand >= hbins[h],fhand < hbins[h+1]))[0]
             histo_hand[h] = hind.size
@@ -338,8 +329,7 @@ def SpecifyHandBounds(fhand,faspect,aspect_bins,bin1_max=2, \
             hand_bin_bounds = [0,bin1_max,b33,b66,1e6]
 
     if (len(hand_bin_bounds) - 1) != 4:
-        print('bad hand bounds')
-        stop
+        raise RuntimeError('bad hand bounds')
     return hand_bin_bounds
                 
 def SpecifyHandBoundsNoAspect(fhand,nbins=4):
@@ -350,8 +340,7 @@ def SpecifyHandBoundsNoAspect(fhand,nbins=4):
     case, the area in the first bin may be smaller than the others.
     Currently, 4 hand bins are created.
     '''
-    std_hand = std_dev(fhand[fhand > 0])
-    # if many zeros exist, both bins 0 and 1 may be equal to zero 
+    # if many zeros exist, both bins 0 and 1 may be equal to zero
     hand_sorted = np.sort(fhand[fhand > 0])
     if nbins == 2:
         quartiles = np.asarray([0.5,1.0])
@@ -363,8 +352,7 @@ def SpecifyHandBoundsNoAspect(fhand,nbins=4):
     hand_bin_bounds = np.asarray([0]+[hand_sorted[int(quartiles[qi]*hand_sorted.size-1)] for qi in range(quartiles.size)])
 
     if (len(hand_bin_bounds) - 1) != nbins:
-        print('bad hand bounds')
-        stop
+        raise RuntimeError('bad hand bounds')
     
     return hand_bin_bounds
                 
