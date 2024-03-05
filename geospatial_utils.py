@@ -18,7 +18,7 @@ std_dev:                standard deviation
 quadratic:              return a solution of a quadratic equation
 _four_point_laplacian:  calculate laplacian using four neighboring points
 _inside_indices_buffer: return indices excluding those in a buffer around array edges
-_expand_mask_buffer:     expand a mask spatially
+expand_mask_buffer:     expand a mask spatially
 
 '''    
 
@@ -148,12 +148,16 @@ def calc_gradient(z,lon,lat,method='Horn1981'):
 def std_dev(x):
     return np.power(np.mean(np.power((x-np.mean(x)),2)),0.5)
 
-def quadratic(coefs,root=0,verbose=False):
+def quadratic(coefs,root=0,eps=1e-6,verbose=False):
     ak, bk, ck = coefs
     if (bk**2-4*ak*ck) < 0:
-        print('cannot solve quadratic with these values \
-        {:.2f}  {:.2f}  {:.2f}'.format(ak,bk,ck))
-        stop
+        # if negative due to roundoff, adjust a coefficient get zero
+        if np.abs(bk**2-4*ak*ck) < eps:
+            ck = bk**2/(4*ak) * (1-eps)
+        else:
+            print('cannot solve quadratic with these values \
+            {:.2f}  {:.2f}  {:.2f}'.format(ak,bk,ck))
+            stop
     
     dm_roots = [(-bk + np.sqrt(bk**2-4*ak*ck))/(2*ak), \
                 (-bk - np.sqrt(bk**2-4*ak*ck))/(2*ak)]
@@ -204,7 +208,7 @@ def _inside_indices_buffer(data, buf=1, mask=None):
 
     return inside
 
-def _expand_mask_buffer(mask,buf=1):
+def expand_mask_buffer(mask,buf=1):
     omask = np.copy(mask)
     # this will use less memory by not accumulating all indices
     # prior to assigning mask points to 1
@@ -247,7 +251,7 @@ def identify_basins(dem,basin_thresh=0.25,niter=30,buf=10):
         imask[np.abs(dem-dem_max_value) < eps] = 1
 
     for n in range(niter):
-        imask = _expand_mask_buffer(imask,buf=buf)
+        imask = expand_mask_buffer(imask,buf=buf)
 
         # remove points each iteration
         imask[np.abs(dem-dem_max_value) >= eps] = 0

@@ -426,7 +426,7 @@ def IdentifySpatialScaleLaplacian(corners, \
     '''
 
     from dem_io import read_MERIT_dem_data, read_ASTER_dem_data
-    from geospatial_utils import fit_planar_surface, smooth_2d_array, blend_edges, calc_gradient_horn1981
+    from geospatial_utils import fit_planar_surface, smooth_2d_array, blend_edges, calc_gradient
     
     if maxHillslopeLength==0:
         print('maxHillslopeLength must be > 0')
@@ -535,11 +535,11 @@ def IdentifySpatialScaleLaplacian(corners, \
     # first dft is real, giving complex result w/ N/2 coefs
     # 2nd dft is complex, with N coefs
 
-    grad = calc_gradient_horn1981(elev,elon,elat)
+    grad = calc_gradient(elev,elon,elat)
     # get spectrum of divergence
-    x = calc_gradient_horn1981(grad[0],elon,elat)
+    x = calc_gradient(grad[0],elon,elat)
     laplac = x[0]
-    x = calc_gradient_horn1981(grad[1],elon,elat)
+    x = calc_gradient(grad[1],elon,elat)
     laplac += x[1]
 
     laplac_fft = np.fft.rfft2(laplac,norm='ortho')

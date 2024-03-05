@@ -11,6 +11,7 @@ import netCDF4 as netcdf4
 import pyproj
 import rasterio
 import gdal as gd
+from geospatial_utils import quadratic, expand_mask_buffer
 
 hdir = 'pysheds_extension/pysheds/'
 sys.path.append(hdir)
@@ -34,10 +35,134 @@ re  = 6.371e6
 
 # function definitions
 
+def calc_width_parameters(dtnd,area,form='trapezoid',useAreaWeight=True,mindtnd=0,nhisto=10):
+    if form not in ['trapezoid','annular']:
+        print('form must be one of: ',['trapezoid','annular'])
+        stop
+
+    dtndbins = np.linspace(mindtnd,np.max(dtnd)+1,nhisto+1)
+    binwidth = dtndbins[1:]-dtndbins[:-1]
+    d = np.zeros((nhisto))
+    A = np.zeros((nhisto))
+    for k in range(nhisto):
+        dind = np.where(dtnd >= dtndbins[k])[0]
+        d[k] = dtndbins[k]
+        A[k] = np.sum(area[dind])
+
+    # add d=0, total area values
+    if mindtnd > 0:
+        d = np.asarray([0]+d.tolist())
+        A = np.asarray([np.sum(area)]+A.tolist())
+                
+    if useAreaWeight:
+        accum_coefs = _fit_polynomial(d,A,ncoefs=3,weights=A)
+    else:
+        accum_coefs = _fit_polynomial(d,A,ncoefs=3)
+
+    if form == 'trapezoid':
+        slope = -accum_coefs[2]
+        width = -accum_coefs[1]
+        Atrap = accum_coefs[0]
+
+        # if quadratic function has a region of positive slope
+        # (possible near the tail, i.e. the large d values)
+        # the implied width will be negative and the trapezoid
+        # approximation will break down, so adjust base width to avoid this issue.
+        Atri = -(width**2)/(4*slope)
+        if Atri < Atrap:
+            width = np.sqrt(-4*slope*Atrap)
+                        
+        return {'slope':slope,'width':width,'area':Atrap}
+
+    if form == 'annular':
+        alpha = 2*accum_coefs[2]
+        rsec = -accum_coefs[1]/alpha
+        Asec = accum_coefs[0]
+
+        # adjust parameters to match actual area per hillslope
+        Asum = np.sum(area)
+        if Asec < Asum:
+            eps = 1e-6
+            alpha = 2*Asum/(rsec**2) + eps
+            Asec = (alpha/2)*rsec**2
+        
+        return {'alpha':alpha,'radius':rsec,'area':Asec}
+
+def _fit_polynomial(x,y,ncoefs,weights=None):
+    im = x.size
+    if im < ncoefs:
+        print('not enough data to fit '+str(ncoefs)+' coefficients')
+        stop
+        #return np.zeros((ncoefs),dtype=np.float64)
+        
+    coefs = np.zeros((ncoefs),dtype=np.float64)
+    g = np.zeros((im,ncoefs),dtype=np.float64)
+    for n in range(ncoefs):
+        g[:,n] = np.power(x,n)
+
+    if type(weights) == type(None):
+        gtd = np.dot(np.transpose(g), y)
+        gtg = np.dot(np.transpose(g), g)
+    else:
+        if y.size != weights.size:
+            print('weights length must match data')
+            stop
+            
+        gtd = np.dot(np.transpose(g), np.dot(np.diag(weights),y))
+        gtg = np.dot(np.transpose(g), np.dot(np.diag(weights),g))
+
+    covm = np.linalg.inv(gtg)
+    coefs = np.dot(covm, gtd)
+
+    return coefs
+
+def _fit_trapezoid(area,dist_from_channel,applyWeights=True):
+    # solve width and angle of a trapezoid given area per catchment and distance from channel
+
+    nm = area.size
+
+    # set up lsq matrix
+    g = np.zeros((nm,2))
+    g[:,0] = dist_from_channel
+    g[:,1] = -dist_from_channel**2
+    d = np.zeros((nm))
+    for n in range(nm):
+        d[n] = (area[n]/2+np.sum(area[:n]))
+
+    if applyWeights:
+        weights = area
+        gtd = np.dot(np.transpose(g), np.dot(np.diag(weights),d))
+        gtg = np.dot(np.transpose(g), np.dot(np.diag(weights),g))
+    else:
+        gtd = np.dot(np.transpose(g), d)
+        gtg = np.dot(np.transpose(g), g)
+
+    #  covm is the model covariance matrix
+    covm = np.linalg.inv(gtg)
+
+    #  coefs is the model parameter vector
+    coefs = np.dot(covm, gtd)
+
+    w0, tana = coefs
+    w = [w0]
+    l = []
+    d = [0]
+    for n in range(nm):
+        # length of section
+        li = quadratic([-tana,w[n],-area[n]])
+        l.append(li)
+        # width at interface with next section
+        wip1 = w[n]-np.sum(l)*tana
+        w.append(wip1)
+        d.append(np.sum(l))
+    return [np.asarray(w),np.asarray(d)]
+
+            
 def CalcRepresentativeHillslopeForm(hillslope_fraction, \
                                     column_index, \
                                     area, dtnd, \
                                     form='CircularSection', \
+                                    number_of_hillslopes=0, \
                                     maxHillslopeLength=0, \
                                     verbose=False):
     '''
@@ -401,7 +526,7 @@ def CalcGeoparamsGridcell(ji, \
             j1 = arg_closest_point(corners[0][1],lc.lat)
             j2 = arg_closest_point(corners[3][1],lc.lat)
             i1, i2 = np.sort([i1,i2])
-            j2, j1 = np.sort([j1,j2]) # correct order for N->S
+            j1, j2 = np.sort([j1,j2])
 
             # extract geomorphic parameters of the gridcell
             fhand   = lc.hand[j1:j2,i1:i2].flatten()
@@ -571,6 +696,7 @@ def CalcGeoparamsGridcell(ji, \
 
         # for each aspect, calculate hillslope elements
         hillslope_fraction = np.zeros((naspect))
+        number_of_hillslopes = np.zeros((naspect))
         for asp_ndx in range(naspect):
             if verbose:
                 print('----  Beginning aspect ', asp_ndx+1,' of ',naspect,' --------------------------')
@@ -581,9 +707,43 @@ def CalcGeoparamsGridcell(ji, \
 
             if aind.size > 0:
                 hillslope_fraction[asp_ndx] =np.sum(farea[aind])/np.sum(farea)
+                number_of_hillslopes[asp_ndx] = np.unique(fdid[aind]).size
                 if verbose:
                     print('hillslope fraction ',asp_ndx,hillslope_fraction)
 
+                # use linear width hillslope models
+                if hillslope_form == 'Trapezoidal':
+                    x = calc_width_parameters(fdtnd[aind],farea[aind]/number_of_hillslopes[asp_ndx],form='trapezoid',mindtnd=ares,nhisto=10)
+                    trap_slope = x['slope']
+                    trap_width = x['width']
+                    trap_area = x['area']
+
+                    # if quadratic function has a region of positive slope
+                    # (possible near the tail, i.e. the large d values)
+                    # the implied width will be negative and the trapezoid
+                    # approximation will break down, so adjust base width to avoid this issue.
+
+                    Atri = -(trap_width**2)/(4*trap_slope)
+                    if Atri < trap_area:
+                        trap_width = np.sqrt(-4*trap_slope*trap_area)
+
+                if hillslope_form == 'AnnularSection':
+                    x = calc_width_parameters(fdtnd[aind],farea[aind]/number_of_hillslopes[asp_ndx],form='annular',mindtnd=ares,nhisto=10)
+                    alpha = x['alpha']
+                    hill_length = x['radius']
+                    Asec = x['area']
+                    Asec = (alpha/2)*hill_length**2
+                
+                    ann_area = np.sum(farea[aind])/number_of_hillslopes[asp_ndx]
+                    # adjust parameters to match actual area per hillslope
+                    if Asec < ann_area:
+                        eps = 1e-6
+                        alpha = 2*ann_area/(hill_length**2) + eps
+                        Asec = (alpha/2)*hill_length**2
+
+                    ann_alpha[asp_ndx] = alpha
+                    ann_hill_length[asp_ndx] = hill_length
+                    
                 # calculate geomorphic parameters in each bin
                 for n in range(nhand_bins):
                     b1 = hand_bin_bounds[n]
@@ -606,6 +766,37 @@ def CalcGeoparamsGridcell(ji, \
                         tmp = fslope[cind]
                         slope[asp_ndx*nhand_bins+n] = np.mean(tmp[np.isfinite(tmp)])
 
+                        if hillslope_form == 'Trapezoidal':
+                            # preserve relative areas
+                            area_fraction = np.sum(farea[cind])/np.sum(farea[aind])
+                            area[asp_ndx*nbins+n] = trap_area * area_fraction
+
+                            # lower edge widths
+                            da = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n])
+                            le = quadratic([trap_slope,trap_width,-da])
+                            we = trap_width + le*trap_slope*2
+                            width[asp_ndx*nbins+n] = we
+
+                            # median distances
+                            da = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n+1])-area[asp_ndx*nbins+n]/2
+                            ld = quadratic([trap_slope,trap_width,-da])
+                            dtnd[asp_ndx*nbins+n] = ld
+                            
+                        if hillslope_form == 'AnnularSection':
+                            # preserve relative areas
+                            area_fraction = np.sum(farea[cind])/np.sum(farea[aind])
+                            area[asp_ndx*nbins+n] = ann_area * area_fraction
+
+                            # lower edge distances and widths
+                            asum = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n])
+                            ri = np.sqrt((Asec-asum)*(2/alpha))
+                            width[asp_ndx*nbins+n] = alpha*ri
+
+                            # median distances and widths
+                            asum = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n+1])-area[asp_ndx*nbins+n]/2
+                            ri = np.sqrt((Asec-asum)*(2/alpha))
+                            dtnd[asp_ndx*nbins+n] = (hill_length - ri)
+                        
                         '''
                         aspect needs to be averaged using circular 
                         (vector) mean rather than arithmatic mean
@@ -716,53 +907,56 @@ def CalcGeoparamsGridcell(ji, \
                 column_index[:] = 0
                 downhill_column_index[:] = 0
 
-        # calculate new distances and widths after initial n loop
-        # sections of circular shaped hillslopes
-        # grid_area is the larger grid used to
-        # create catchments and stream network
-        # farea is the area of the actual gridcell
-        # and is smaller than grid_area
-        # width will be width at lower edge
+        # use sectional hillslope models
+        if hillslope_form in ['CircularSection','TriangularSection']:
 
-        new_num_hillslopes = 0
+            # calculate new distances and widths after initial n loop
+            # sections of circular shaped hillslopes
+            # grid_area is the larger grid used to
+            # create catchments and stream network
+            # farea is the area of the actual gridcell
+            # and is smaller than grid_area
+            # width will be width at lower edge
 
-        mean_hill_length = np.zeros((naspect))
-        for asp_ndx in range(naspect):
-            if verbose:
-                print('Calculating hillslope distance/width for aspect ',asp_ndx)
+            new_num_hillslopes = 0
 
-            aind = np.where(hillslope_index[:] == (asp_ndx+1))[0]
-            if aind.size > 0:
-
-                x = CalcRepresentativeHillslopeForm(hillslope_fraction[asp_ndx], \
-                                                    column_index[aind], \
-                                                    area[aind], \
-                                                    dtnd[aind], \
-                                                    form=hillslope_form, \
-                                                    maxHillslopeLength = maxHillslopeLength, \
-                                                    verbose=verbose)
-                nvbins = x['n_valid_bins']
-                dtnd[aind[0:nvbins]]  = x['node_distance']
-                width[aind[0:nvbins]] = x['edge_width']
-                area[aind[0:nvbins]]  = x['area']
-                mean_hill_length[asp_ndx] = x['hill_length']
+            mean_hill_length = np.zeros((naspect))
+            for asp_ndx in range(naspect):
                 if verbose:
-                    print('column areas ',area[aind])
-                    print('total column area ',np.sum(area[aind]))
-                    print('lowland width ',width[aind[0]])
-                    print(asp_ndx+1,' approximate number of hillslopes ',hillslope_fraction[asp_ndx]*np.sum(farea[np.isfinite(fhand)])/np.sum(area[aind[0:nvbins]]),'\n')
+                    print('Calculating hillslope distance/width for aspect ',asp_ndx)
+
+                aind = np.where(hillslope_index[:] == (asp_ndx+1))[0]
+                if aind.size > 0:
+
+                    x = CalcRepresentativeHillslopeForm(hillslope_fraction[asp_ndx], \
+                                                        column_index[aind], \
+                                                        area[aind], \
+                                                        dtnd[aind], \
+                                                        form=hillslope_form, \
+                                                        maxHillslopeLength = maxHillslopeLength, \
+                                                        verbose=verbose)
+                    nvbins = x['n_valid_bins']
+                    dtnd[aind[0:nvbins]]  = x['node_distance']
+                    width[aind[0:nvbins]] = x['edge_width']
+                    area[aind[0:nvbins]]  = x['area']
+                    mean_hill_length[asp_ndx] = x['hill_length']
+                    if verbose:
+                        print('column areas ',area[aind])
+                        print('total column area ',np.sum(area[aind]))
+                        print('lowland width ',width[aind[0]])
+                        print(asp_ndx+1,' approximate number of hillslopes ',hillslope_fraction[asp_ndx]*np.sum(farea[np.isfinite(fhand)])/np.sum(area[aind[0:nvbins]]),'\n')
 
 
-                new_num_hillslopes += hillslope_fraction[asp_ndx]*np.sum(farea[np.isfinite(fhand)])/np.sum(area[aind[0:nvbins]])
-                    
-        if verbose:
-            # compare Agrc/nstreams eff. radius to mean hill length
-            #print('mean_hill_lengths ',mean_hill_length)
-            print('mean_hill_length ',np.mean(mean_hill_length))
-            # in this model, 4 catchments make up a feature
-            print('Total area eff rad ',np.sqrt(4*np.sum(farea[np.isfinite(fhand)])/stream_number/np.pi)) 
-            print('area per stream ',np.sum(farea[np.isfinite(fhand)])/stream_number)
-            print('mean hillslope area ',0.25*np.sum(area))
+                    new_num_hillslopes += hillslope_fraction[asp_ndx]*np.sum(farea[np.isfinite(fhand)])/np.sum(area[aind[0:nvbins]])
+
+            if verbose:
+                # compare Agrc/nstreams eff. radius to mean hill length
+                #print('mean_hill_lengths ',mean_hill_length)
+                print('mean_hill_length ',np.mean(mean_hill_length))
+                # in this model, 4 catchments make up a feature
+                print('Total area eff rad ',np.sqrt(4*np.sum(farea[np.isfinite(fhand)])/stream_number/np.pi)) 
+                print('area per stream ',np.sum(farea[np.isfinite(fhand)])/stream_number)
+                print('mean hillslope area ',0.25*np.sum(area))
         
         # Calculate stream geometry from hillslope parameters
         adepth, bdepth = 1e-3, 0.4
@@ -1234,6 +1428,7 @@ class LandscapeCharacteristics(object):
         self.aznd   = np.asarray(grid.view('aznd'))
         self.drainage_id    = np.asarray(grid.view('drainage_id'))
         self.fflood = fflood
+        lon[lon >= 360] -= 360
         self.lon = lon
         self.lat = lat
 
@@ -1287,3 +1482,35 @@ class LandscapeCharacteristics(object):
 
         return 0
 
+    def IdentifyBasins(self,basin_thresh=0.25,niter=30,buf=1):
+        # create basin mask, 1 in basin, 0 outside of basin
+        # flat areas often have large dtnd and small hand values
+        # due to flowpaths in flooded/inflated part of dem
+        imask = np.zeros(self.dem.shape)
+
+        # find most common elevation value
+        udem,ucnt = np.unique(self.dem,return_counts=True)
+        ufrac = ucnt/self.dem.size
+        ind = np.where(ufrac > basin_thresh)[0]
+
+        if ind.size > 0:
+            for i in ind:
+                # if elevation is zero, assume open water and tighten tolerance
+                eps = 1e-2
+                if np.abs(udem[i]) < eps:
+                    eps = 1e-6
+                imask[np.abs(self.dem-udem[i]) < eps] = 1
+
+            # remove isolated points
+            for n in range(niter):
+                imask = expand_mask_buffer(imask,buf=buf)
+                # remove points each iteration
+                eps = 1e-2
+                for i in ind:
+                    # if elevation is zero, assume open water and tighten tolerance
+                    if np.abs(udem[i]) < eps:
+                        eps = 1e-6
+                    imask[four_point_laplacian(1-imask) >= 3] = 0
+
+        return imask
+    

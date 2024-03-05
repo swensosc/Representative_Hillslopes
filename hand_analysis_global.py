@@ -64,8 +64,12 @@ maxHillslopeLength = 10 * 1e3
 
 # select hillslope plan form to use
 if args.form == 0:
-    hillslope_form = 'CircularSection'
+    hillslope_form = 'Trapezoidal'
 if args.form == 1:
+    hillslope_form = 'AnnularSection'
+if args.form == 2:
+    hillslope_form = 'CircularSection'
+if args.form == 3:
     hillslope_form = 'TriangularSection'
 
 # set number of bins for spectra
