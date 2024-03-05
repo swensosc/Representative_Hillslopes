@@ -3,6 +3,7 @@
 
 import time
 import argparse
+import os
 import numpy as np
 import netCDF4 as netcdf4
 from numpy.random import default_rng
@@ -17,7 +18,13 @@ parser.add_argument("-d", "--debug", help="print debugging info", action="store_
 parser.add_argument("-t", "--timer", help="print timing info", action="store_true",default=False)
 parser.add_argument("--pt", help="location", nargs='?',type=int,default=0)
 parser.add_argument("--form", help="hillslope form", nargs='?',type=int,default=0)
+parser.add_argument("--sfcfile", help="Surface dataset from which grid should be taken",
+                    default="surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc")
 args = parser.parse_args()
+
+# Check arguments
+if not os.path.exists(args.sfcfile):
+    raise FileNotFoundError(f"sfcfile not found: {args.sfcfile}")
 
 cndx = args.cndx
 
@@ -104,7 +111,6 @@ nhillslope = naspect
 dem_source = 'MERIT'
 
 # define regions from gridcells in surface data file
-sfcfile = 'surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc'
 odir = './'
 outfile = odir + 'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc'
         
@@ -114,7 +120,7 @@ if dem_source == 'MERIT':
     outfile = outfile.replace('.nc','_MERIT.nc')
     print('\ndem template files: ',efile0,'\n')
 
-f = netcdf4.Dataset(sfcfile, 'r')
+f = netcdf4.Dataset(args.sfcfile, 'r')
 slon2d = np.asarray(f.variables['LONGXY'][:,])
 slat2d = np.asarray(f.variables['LATIXY'][:,])
 slon = np.squeeze(slon2d[0,:])                                 
