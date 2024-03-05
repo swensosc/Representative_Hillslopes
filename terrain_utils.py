@@ -13,7 +13,6 @@ SpecifyHandBoundsNoAspect:             define bounds used to bin HAND distributi
 _calculate_hillslope_mean_aspect:       calculate the vector-mean aspect value
 _four_point_laplacian:                  calculate the laplacian of a binary mask
 _inside_indices_buffer:                 return indices of a 2d array excluding those within buffer of edges
-_expand_mask_buffer:                    expand a mask 
 
 '''    
 
