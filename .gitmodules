@@ -1,0 +1,4 @@
+[submodule "pysheds"]
+	path = pysheds
+	url = https://github.com/swensosc/pysheds
+    branch = pysheds_extension

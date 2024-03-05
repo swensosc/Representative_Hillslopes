@@ -1,11 +1,8 @@
-import sys 
-import string 
-import subprocess
-import time
-import argparse
-import numpy as np 
-import netCDF4 as netcdf4 
+import numpy as np
 from scipy import optimize,signal
+
+from dem_io import read_MERIT_dem_data, read_ASTER_dem_data
+from geospatial_utils import fit_planar_surface, smooth_2d_array, blend_edges, calc_gradient
 
 '''
 _fit_polynomial:         calculate polynomial coefficients
@@ -32,8 +29,7 @@ re  = 6.371e6
 def _fit_polynomial(x,y,ncoefs,weights=None):
     im = x.size
     if im < ncoefs:
-        print('not enough data to fit '+str(ncoefs)+' coefficients')
-        stop
+        raise RuntimeError('not enough data to fit '+str(ncoefs)+' coefficients')
         #return np.zeros((ncoefs),dtype=np.float64)
         
     coefs = np.zeros((ncoefs),dtype=np.float64)
@@ -46,8 +42,7 @@ def _fit_polynomial(x,y,ncoefs,weights=None):
         gtg = np.dot(np.transpose(g), g)
     else:
         if y.size != weights.size:
-            print('weights length must match data')
-            stop
+            raise RuntimeError('weights length must match data')
             
         gtd = np.dot(np.transpose(g), np.dot(np.diag(weights),y))
         gtg = np.dot(np.transpose(g), np.dot(np.diag(weights),g))
@@ -392,8 +387,7 @@ def _LocatePeak(lambda_1d,ratio_var_to_lambda,maxWavelength=1e6,minWavelength=1,
 
 
     if model == 'None':
-        print('No model selected')
-        stop
+        raise RuntimeError('No model selected')
 
     if verbose:
         print('\nEnd curve fitting')
@@ -425,19 +419,13 @@ def IdentifySpatialScaleLaplacian(corners, \
     exhibits the largest divergence/convergence of topographic gradient.
     '''
 
-    from dem_io import read_MERIT_dem_data, read_ASTER_dem_data
-    from geospatial_utils import fit_planar_surface, smooth_2d_array, blend_edges, calc_gradient_horn1981
-    
     if maxHillslopeLength==0:
-        print('maxHillslopeLength must be > 0')
-        stop
+        raise RuntimeError('maxHillslopeLength must be > 0')
     if type(dem_file_template)==type(None):
-        print('no dem file template supplied')
-        stop
+        raise RuntimeError('no dem file template supplied')
 
     if dem_source not in ['MERIT','ASTER']:
-        print('invalid dem source ', dem_source)
-        stop
+        raise RuntimeError('invalid dem source ', dem_source)
 
     if dem_source == 'MERIT':
         x = read_MERIT_dem_data(dem_file_template,corners,zeroFill=True)
@@ -535,11 +523,11 @@ def IdentifySpatialScaleLaplacian(corners, \
     # first dft is real, giving complex result w/ N/2 coefs
     # 2nd dft is complex, with N coefs
 
-    grad = calc_gradient_horn1981(elev,elon,elat)
+    grad = calc_gradient(elev,elon,elat)
     # get spectrum of divergence
-    x = calc_gradient_horn1981(grad[0],elon,elat)
+    x = calc_gradient(grad[0],elon,elat)
     laplac = x[0]
-    x = calc_gradient_horn1981(grad[1],elon,elat)
+    x = calc_gradient(grad[1],elon,elat)
     laplac += x[1]
 
     laplac_fft = np.fft.rfft2(laplac,norm='ortho')
