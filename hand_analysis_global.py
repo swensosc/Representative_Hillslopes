@@ -20,6 +20,9 @@ parser.add_argument("--pt", help="location", nargs='?',type=int,default=0)
 parser.add_argument("--form", help="hillslope form", nargs='?',type=int,default=0)
 parser.add_argument("--sfcfile", help="Surface dataset from which grid should be taken",
                     default="surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc")
+parser.add_argument("-o", "--output-dir",
+                    help="Directory where output file should be saved (default: current dir)",
+                    default=os.getcwd())
 
 dem_source_default = "MERIT"
 dem_data_path_default = os.path.join("MERIT", "data")
@@ -35,6 +38,8 @@ if not os.path.exists(args.sfcfile):
     raise FileNotFoundError(f"sfcfile not found: {args.sfcfile}")
 if not os.path.exists(args.dem_data_path):
     raise FileNotFoundError(f"dem_data_path not found: {args.dem_data_path}")
+if not os.path.exists(args.output_dir):
+    os.makedirs(args.output_dir)
 
 cndx = args.cndx
 
@@ -117,9 +122,12 @@ asp_name = ['north','east','south','west']
 ncolumns_per_gridcell = naspect * nbins
 nhillslope = naspect
 
-# define regions from gridcells in surface data file
-odir = './'
-outfile = odir + 'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc'
+# Define output file
+outfile = os.path.join(
+    args.output_dir,
+    'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc',
+)
+print(f"Output file: {outfile}")
         
 # Select DEM source data
 if args.dem_source == 'MERIT':
