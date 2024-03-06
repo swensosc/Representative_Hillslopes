@@ -130,7 +130,6 @@ outfile = os.path.join(
     args.output_dir,
     'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc',
 )
-print(f"Output file: {outfile}")
         
 # Select DEM source data
 if args.dem_source == 'MERIT':
@@ -139,6 +138,8 @@ if args.dem_source == 'MERIT':
     print('\ndem template files: ',efile0,'\n')
 else:
     raise ValueError(f"Invalid setting for --dem-source: {args.dem_source}")
+
+print(f"Output file: {outfile}")
 
 f = netcdf4.Dataset(args.sfcfile, 'r')
 slon2d = np.asarray(f.variables['LONGXY'][:,])
