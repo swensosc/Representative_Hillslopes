@@ -234,7 +234,8 @@ for j in range(jstart,jend):
         if landmask[j,i] == 1:
             ji_pairs.append([j,i])
             
-print('number of points ',len(ji_pairs),'\n')
+n_points = len(ji_pairs)
+print('number of points ',n_points,'\n')
     
 # randomize point list to avoid multiple processes working on same point
 randomizePointList = False
@@ -246,9 +247,9 @@ if randomizePointList:
     ji_pairs = ji_pair_array.tolist()
 
 # loop over point list
-for k in ji_pairs:
+for index, k in enumerate(ji_pairs):
     j,i = k
-    print('Beginning gridcell ',j,i,flush=printFlush)
+    print(f"Beginning gridcell {j} {i} ({index}/{n_points})", flush=printFlush)
     x = CalcGeoparamsGridcell([j,i], \
                               lon2d=slon2d, \
                               lat2d=slat2d, \
