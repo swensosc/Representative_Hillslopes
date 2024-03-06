@@ -1,6 +1,5 @@
 import subprocess
-import os
-import numpy as np
+import numpy as np 
 import netCDF4 as netcdf4 
 import pyproj
 import rasterio
@@ -140,12 +139,18 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
 
     # get unique values
     efiles = np.unique(np.asarray(efiles))
+    numfiles = efiles.size
 
     # check that all files exist (call returns 0)
     # (corners may extend beyond existing dem tiles)
-    for file in efiles:
-        if not os.path.exists(file):
-            raise FileNotFoundError(f"File not found: {file}")
+    emask = np.ones(efiles.size, dtype=bool)
+    for n in range(efiles.size):
+        geofile = efiles[n]
+        command=['ls',geofile]
+        file_exists=subprocess.run(command,capture_output=True).returncode
+        if file_exists > 0:
+            emask[n] = False
+    efiles = efiles[emask]
 
     return efiles
 
@@ -346,12 +351,18 @@ def _get_ASTER_dem_filenames(dem_file_template,corners):
 
     # get unique values
     efiles = np.unique(np.asarray(efiles))
+    numfiles = efiles.size
 
     # check that all files exist (call returns 0)
     # (corners may extend beyond existing dem tiles)
-    for file in efiles:
-        if not os.path.exists(file):
-            raise FileNotFoundError(f"File not found: {file}")
+    emask = np.ones(efiles.size, dtype=bool)
+    for n in range(efiles.size):
+        geofile = efiles[n]
+        command=['ls',geofile]
+        file_exists=subprocess.run(command,capture_output=True).returncode
+        if file_exists > 0:
+            emask[n] = False
+    efiles = efiles[emask]
 
     return efiles
 

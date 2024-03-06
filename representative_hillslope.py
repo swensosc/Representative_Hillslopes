@@ -397,7 +397,11 @@ def CalcGeoparamsGridcell(ji, \
                                              dem_source=dem_source, \
                                              verbose=verbose)
 
-
+        if not x['validDEM']:
+            if verbose:
+                print('invalid dem ',j,i)
+            return [-1]
+        
         spatialScale = x['spatialScale']
         model        = x['model']
         ares         = x['res']
