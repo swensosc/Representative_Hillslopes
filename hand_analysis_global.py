@@ -13,7 +13,7 @@ from representative_hillslope import CalcGeoparamsGridcell
 # Create representative hillslope geomorphic parameters
 parser = argparse.ArgumentParser(description='Geomorphic parameter analysis')
 parser.add_argument("cndx", help="chunk", nargs='?',type=int,default=0)
-parser.add_argument("-o", "--overwrite", help="overwrite", action="store_true",default=False)
+parser.add_argument("--overwrite", help="overwrite", action="store_true",default=False)
 parser.add_argument("-d", "--debug", help="print debugging info", action="store_true",default=False)
 parser.add_argument("-t", "--timer", help="print timing info", action="store_true",default=False)
 parser.add_argument("--pt", help="location", nargs='?',type=int,default=0)
