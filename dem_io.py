@@ -150,6 +150,8 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
         file_exists=subprocess.run(command,capture_output=True).returncode
         if file_exists > 0:
             emask[n] = False
+    if not np.any(emask):
+        raise FileNotFoundError(f"No DEM files found matching template: {dem_file_template}")
     efiles = efiles[emask]
 
     return efiles
@@ -362,6 +364,8 @@ def _get_ASTER_dem_filenames(dem_file_template,corners):
         file_exists=subprocess.run(command,capture_output=True).returncode
         if file_exists > 0:
             emask[n] = False
+    if not np.any(emask):
+        raise FileNotFoundError(f"No DEM files found matching template: {dem_file_template}")
     efiles = efiles[emask]
 
     return efiles
