@@ -69,6 +69,19 @@ def create_subregion_corner_lists(corners,central_point,ensurePositive=True):
                     
     return corner_list
 
+def _check_files_exist(dem_file_template, efiles):
+    emask = np.ones(efiles.size, dtype=bool)
+    for n in range(efiles.size):
+        geofile = efiles[n]
+        command=['ls',geofile]
+        file_exists=subprocess.run(command,capture_output=True).returncode
+        if file_exists > 0:
+            emask[n] = False
+    if not np.any(emask):
+        raise FileNotFoundError(f"No DEM files found matching template: {dem_file_template}")
+    efiles = efiles[emask]
+    return efiles
+
 def _get_MERIT_dem_filenames(dem_file_template,corners):
     # dem_file_template is assumed to have form of:
     # 'my_path/elv_DirTag/TileTag_elv.tif'
@@ -143,16 +156,7 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
 
     # check that all files exist (call returns 0)
     # (corners may extend beyond existing dem tiles)
-    emask = np.ones(efiles.size, dtype=bool)
-    for n in range(efiles.size):
-        geofile = efiles[n]
-        command=['ls',geofile]
-        file_exists=subprocess.run(command,capture_output=True).returncode
-        if file_exists > 0:
-            emask[n] = False
-    if not np.any(emask):
-        raise FileNotFoundError(f"No DEM files found matching template: {dem_file_template}")
-    efiles = efiles[emask]
+    efiles = _check_files_exist(dem_file_template, efiles)
 
     return efiles
 
@@ -357,16 +361,7 @@ def _get_ASTER_dem_filenames(dem_file_template,corners):
 
     # check that all files exist (call returns 0)
     # (corners may extend beyond existing dem tiles)
-    emask = np.ones(efiles.size, dtype=bool)
-    for n in range(efiles.size):
-        geofile = efiles[n]
-        command=['ls',geofile]
-        file_exists=subprocess.run(command,capture_output=True).returncode
-        if file_exists > 0:
-            emask[n] = False
-    if not np.any(emask):
-        raise FileNotFoundError(f"No DEM files found matching template: {dem_file_template}")
-    efiles = efiles[emask]
+    efiles = _check_files_exist(dem_file_template, efiles)
 
     return efiles
 
