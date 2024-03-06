@@ -69,12 +69,6 @@ useMultiprocessing = False
 
 detrendElevation = True
 
-setMinToZero = True
-
-filterElevation = True
-
-applyOceanMask = False
-
 # set maximum hillslope length [m]
 maxHillslopeLength = 10 * 1e3
 
