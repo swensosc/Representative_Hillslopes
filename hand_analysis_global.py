@@ -24,6 +24,12 @@ parser.add_argument("-o", "--output-dir",
                     help="Directory where output file should be saved (default: current dir)",
                     default=os.getcwd())
 
+default_nchunks = 6
+parser.add_argument(
+    "--nchunks", type=int, default=default_nchunks,
+    help=f"Number of chunks to split processing into (default: {default_nchunks})",
+)
+
 dem_source_default = "MERIT"
 dem_data_path_default = os.path.join("MERIT", "data")
 parser.add_argument("--dem-source", "--dem_source", type=str, default=dem_source_default,
@@ -33,7 +39,7 @@ parser.add_argument("--dem-data-path", type=str, default=dem_data_path_default,
 
 args = parser.parse_args()
 
-# Check arguments
+# Check paths
 if not os.path.exists(args.sfcfile):
     raise FileNotFoundError(f"sfcfile not found: {args.sfcfile}")
 if not os.path.exists(args.dem_data_path):
@@ -41,18 +47,15 @@ if not os.path.exists(args.dem_data_path):
 if not os.path.exists(args.output_dir):
     os.makedirs(args.output_dir)
 
-cndx = args.cndx
+# Check and process chunk settings
+totalChunks = args.nchunks*args.nchunks
+if args.cndx < 0 or args.cndx > totalChunks:
+    raise RuntimeError('args.cndx must be 1-{:d}'.format(totalChunks))
+if args.cndx == 0 and args.pt < 1:
+    raise RuntimeError('args.cndx = 0; select a pt with --pt')
 
-# chunk data 
-nChunks = 6
-totalChunks = nChunks*nChunks
-if cndx < 0 or cndx > totalChunks:
-    raise RuntimeError('cndx must be 1-{:d}'.format(totalChunks))
-if cndx == 0 and args.pt < 1:
-    raise RuntimeError('cndx = 0; select a pt with --pt')
-
-print('Chunk ', cndx)
-chunkLabel = '{:02d}'.format(cndx)
+print('Chunk ', args.cndx)
+chunkLabel = '{:02d}'.format(args.cndx)
 
 doTimer = args.timer
 
@@ -208,10 +211,10 @@ else:
     jstart, jend = 0, sjm
     verbose = args.debug
 
-    nichunk = int(sim//nChunks)
-    njchunk = int(sjm//nChunks)
-    i = (cndx-1)//nChunks
-    j = np.mod((cndx-1),nChunks)
+    nichunk = int(sim//args.nchunks)
+    njchunk = int(sjm//args.nchunks)
+    i = (args.cndx-1)//args.nchunks
+    j = np.mod((args.cndx-1),args.nchunks)
     istart,iend = i*nichunk,min([(i+1)*nichunk,sim])
     jstart,jend = j*njchunk,min([(j+1)*njchunk,sjm])
 
