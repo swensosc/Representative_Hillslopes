@@ -37,6 +37,15 @@ parser.add_argument("--dem-source", "--dem_source", type=str, default=dem_source
 parser.add_argument("--dem-data-path", type=str, default=dem_data_path_default,
                     help=f"Path to DEM source data (default: {dem_data_path_default})")
 
+parser.add_argument(
+    "--no-add-stream-channel-vars", action="store_false", dest="addStreamChannelVariables",
+    help="Do not add stream channel variables",
+    )
+parser.add_argument(
+    "--no-detrend-elevation", action="store_false", dest="detrendElevation",
+    help="Do not detrend elevation",
+    )
+
 args = parser.parse_args()
 
 # Check paths
@@ -62,12 +71,8 @@ doTimer = args.timer
 if doTimer:
     stime = time.time()
 
-addStreamChannelVariables = True
-    
 useMultiprocessing = False
 #useMultiprocessing = True
-
-detrendElevation = True
 
 # set maximum hillslope length [m]
 maxHillslopeLength = 10 * 1e3
@@ -172,7 +177,7 @@ downhill_column_index  = np.zeros((ncolumns_per_gridcell,sjm,sim))
 
 nhillcolumns = np.zeros((sjm,sim))
 
-if addStreamChannelVariables:
+if args.addStreamChannelVariables:
     wdepth = np.zeros((sjm,sim))
     wwidth = np.zeros((sjm,sim))
     wslope = np.zeros((sjm,sim))
@@ -255,7 +260,7 @@ for index, k in enumerate(ji_pairs):
                               maxHillslopeLength=maxHillslopeLength,
                               hillslope_form=hillslope_form, \
                               dem_file_template=efile0, \
-                              detrendElevation=detrendElevation, \
+                              detrendElevation=args.detrendElevation, \
                               nlambda=nlambda, \
                               dem_source=args.dem_source, \
                               flagBasins=flagBasins, \
