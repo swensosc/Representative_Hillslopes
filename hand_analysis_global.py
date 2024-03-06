@@ -125,8 +125,8 @@ asp_name = ['north','east','south','west']
 ncolumns_per_gridcell = naspect * nbins
 nhillslope = naspect
 
-# Define output file
-outfile = os.path.join(
+# Define output file template
+outfile_template = os.path.join(
     args.output_dir,
     'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc',
 )
@@ -134,12 +134,12 @@ outfile = os.path.join(
 # Select DEM source data
 if args.dem_source == 'MERIT':
     efile0 = os.path.join(args.dem_data_path, "elv_DirTag", "TileTag_elv.tif")
-    outfile = outfile.replace('.nc','_MERIT.nc')
+    outfile_template = outfile_template.replace('.nc','_MERIT.nc')
     print('\ndem template files: ',efile0,'\n')
 else:
     raise ValueError(f"Invalid setting for --dem-source: {args.dem_source}")
 
-print(f"Output file: {outfile}")
+print(f"Output filename template: {outfile_template}")
 
 f = netcdf4.Dataset(args.sfcfile, 'r')
 slon2d = np.asarray(f.variables['LONGXY'][:,])
@@ -265,7 +265,7 @@ for index, k in enumerate(ji_pairs):
                               nlambda=nlambda, \
                               dem_source=args.dem_source, \
                               flagBasins=flagBasins, \
-                              outfile_template=outfile, \
+                              outfile_template=outfile_template, \
                               overwrite=args.overwrite, \
                               printData=checkSinglePoint, \
                               verbose=verbose)
