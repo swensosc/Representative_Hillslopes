@@ -78,6 +78,9 @@ def _check_files_exist(dem_file_template, efiles):
         if file_exists > 0:
             emask[n] = False
     if not np.any(emask):
+        print("All DEM files missing:")
+        for file in efiles:
+            print(f"   {file}")
         raise FileNotFoundError(f"No DEM files found matching template: {dem_file_template}")
     efiles = efiles[emask]
     return efiles
