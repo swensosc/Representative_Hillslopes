@@ -23,6 +23,8 @@ parser.add_argument("--sfcfile", help="Surface dataset from which grid should be
 parser.add_argument("-o", "--output-dir",
                     help="Directory where output file should be saved (default: current dir)",
                     default=os.getcwd())
+parser.add_argument("--use-multi-processing", action="store_true", dest="useMultiProcessing",
+                    help="Use multiple processors")
 
 default_nchunks = 6
 parser.add_argument(
@@ -70,9 +72,6 @@ doTimer = args.timer
 
 if doTimer:
     stime = time.time()
-
-useMultiprocessing = False
-#useMultiprocessing = True
 
 # set maximum hillslope length [m]
 maxHillslopeLength = 10 * 1e3
@@ -267,7 +266,8 @@ for index, k in enumerate(ji_pairs):
                               outfile_template=outfile_template, \
                               overwrite=args.overwrite, \
                               printData=checkSinglePoint, \
-                              verbose=verbose)
+                              verbose=verbose,
+                              useMultiProcessing=args.useMultiProcessing)
 
 if doTimer:
     etime = time.time()

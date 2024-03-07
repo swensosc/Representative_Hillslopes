@@ -320,7 +320,8 @@ def CalcGeoparamsGridcell(ji, \
                       hillslope_form=None, \
                       printData=False, \
                       verbose=False, \
-                      printFlush=True):
+                      printFlush=True,
+                      useMultiProcessing=False):
 
     stime = time.time()
     j,i = ji
@@ -479,7 +480,7 @@ def CalcGeoparamsGridcell(ji, \
             x = lc.CalcLandscapeCharacteristicsPysheds(corner_list[nsub], \
                                                accum_thresh=accum_thresh, \
                                                dem_file_template=dem_file_template, \
-                                               useMultiprocessing=False, \
+                                               useMultiProcessing=useMultiProcessing, \
                                                dem_source=dem_source, \
                                                maskFlooded=False, \
                                                verbose=verbose)
@@ -1138,7 +1139,7 @@ class LandscapeCharacteristics(object):
                                             dem_file_template=None, \
                                             fill_value = -9999, \
                                             useConsistentChannelMask=True, \
-                                            useMultiprocessing=True, \
+                                            useMultiProcessing=True, \
                                             npools=4, \
                                             dem_source='MERIT', \
                                             maskFlooded=True, \
@@ -1434,7 +1435,7 @@ class LandscapeCharacteristics(object):
             print('averaging aspect across catchments')
         aspect2d_catchment_mean = np.zeros((jm,im))
         uid = np.unique(self.drainage_id[np.isfinite(self.drainage_id)])
-        if useMultiprocessing:
+        if useMultiProcessing:
             # parallel version
             if verbose:
                 stime = time.time()
