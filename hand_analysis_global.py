@@ -248,7 +248,7 @@ if randomizePointList:
 # loop over point list
 for index, k in enumerate(ji_pairs):
     j,i = k
-    print(f"Beginning gridcell {j} {i} ({index}/{n_points})", flush=printFlush)
+    print(f"Beginning gridcell {j} {i} ({index+1}/{n_points})", flush=printFlush)
     x = CalcGeoparamsGridcell([j,i], \
                               lon2d=slon2d, \
                               lat2d=slat2d, \
