@@ -249,25 +249,27 @@ if randomizePointList:
 for index, k in enumerate(ji_pairs):
     j,i = k
     print(f"Beginning gridcell {j} {i} ({index+1}/{n_points})", flush=printFlush)
-    x = CalcGeoparamsGridcell([j,i], \
-                              lon2d=slon2d, \
-                              lat2d=slat2d, \
-                              landmask=landmask, \
-                              nhand_bins=nbins, \
-                              aspect_bins=aspect_bins, \
-                              ncolumns_per_gridcell=ncolumns_per_gridcell, \
-                              maxHillslopeLength=maxHillslopeLength,
-                              hillslope_form=hillslope_form, \
-                              dem_file_template=efile0, \
-                              detrendElevation=args.detrendElevation, \
-                              nlambda=nlambda, \
-                              dem_source=args.dem_source, \
-                              flagBasins=flagBasins, \
-                              outfile_template=outfile_template, \
-                              overwrite=args.overwrite, \
-                              printData=checkSinglePoint, \
-                              verbose=verbose,
-                              useMultiProcessing=args.useMultiProcessing)
+    CalcGeoparamsGridcell(
+        [j, i],
+        lon2d=slon2d,
+        lat2d=slat2d,
+        landmask=landmask,
+        nhand_bins=nbins,
+        aspect_bins=aspect_bins,
+        ncolumns_per_gridcell=ncolumns_per_gridcell,
+        maxHillslopeLength=maxHillslopeLength,
+        hillslope_form=hillslope_form,
+        dem_file_template=efile0,
+        detrendElevation=args.detrendElevation,
+        nlambda=nlambda,
+        dem_source=args.dem_source,
+        flagBasins=flagBasins,
+        outfile_template=outfile_template,
+        overwrite=args.overwrite,
+        printData=checkSinglePoint,
+        verbose=verbose,
+        useMultiProcessing=args.useMultiProcessing,
+    )
 
 if doTimer:
     etime = time.time()
