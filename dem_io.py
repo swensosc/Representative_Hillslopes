@@ -154,7 +154,7 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
 
     return efiles
 
-def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
+def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
 
     # Determine dem filenames
     # MERIT filenames indicate lower left corner of tile
@@ -218,7 +218,7 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
             delta_lon = (corners[0][0]-ex0)
             if delta_lon > 360:
                 delta_lon -= 360
-            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
+            if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
                 raise RuntimeError('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
 
             # right side
@@ -232,7 +232,8 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
             delta_lon = ((ex0+nx*dmlon)-corners[2][0])
             if delta_lon > 360:
                 delta_lon -= 360
-            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0: raise RuntimeError(ex0+nx*dmlon,corners[2][0])
+            if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
+                raise RuntimeError(ex0+nx*dmlon,corners[2][0])
 
 
             elon = ex0 + (np.arange(nx)+0.5)*dmlon
@@ -242,14 +243,14 @@ def read_MERIT_dem_data(dem_file_template,corners,zeroFill=False):
             ey0 = y0 + np.floor(m0)*dmlat
 
             # ey0 should be < lower edge, and within dmlat
-            if (corners[0][1]-ey0)/dmlat > 1 or (corners[0][1]-ey0)/dmlat < 0:
+            if np.round((corners[0][1]-ey0)/dmlat,tol) > 1 or np.round((corners[0][1]-ey0)/dmlat,tol) < 0:
                 raise RuntimeError('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
 
             # top
             delta_lat = (corners[1][1] - ey0)
             ny = np.ceil(delta_lat/dmlat).astype(int)
 
-            if ((ey0+ny*dmlat)-corners[1][1])/dmlat > 1 or ((ey0+ny*dmlat)-corners[1][1])/dmlat < 0:
+            if np.round(((ey0+ny*dmlat)-corners[1][1])/dmlat,tol) > 1 or np.round(((ey0+ny*dmlat)-corners[1][1])/dmlat,tol) < 0:
                 raise RuntimeError(ey0+ny*dmlat,corners[1][1])
 
             elat = ey0 + (np.arange(ny)+0.5)*dmlat
@@ -366,7 +367,7 @@ def _get_ASTER_dem_filenames(dem_file_template,corners):
 
     return efiles
 
-def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
+def read_ASTER_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
     # Determine dem filenames
     demfiles = _get_ASTER_dem_filenames(dem_file_template,corners)
 
@@ -437,7 +438,7 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
             delta_lon = (corners[0][0]-ex0)
             if delta_lon > 360:
                 delta_lon -= 360
-            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
+            if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
                 raise RuntimeError('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
 
             # right side
@@ -451,7 +452,7 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
             delta_lon = ((ex0+nx*dmlon)-corners[2][0])
             if delta_lon > 360:
                 delta_lon -= 360
-            if delta_lon/dmlon > 1 or delta_lon/dmlon < 0:
+            if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
                 raise RuntimeError(ex0+nx*dmlon,corners[2][0])
 
             elon = ex0 + (np.arange(nx)+0.5)*dmlon
@@ -462,14 +463,14 @@ def read_ASTER_dem_data(dem_file_template,corners,zeroFill=False):
             ey0 = y0 + np.floor(m0)*dmlat
 
             # ey0 should be < lower edge, and within dmlat
-            if (corners[0][1]-ey0)/dmlat > 1 or (corners[0][1]-ey0)/dmlat < 0:
+            if np.round((corners[0][1]-ey0)/dmlat,tol) > 1 or np.round((corners[0][1]-ey0)/dmlat,tol) < 0:
                 raise RuntimeError('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
 
             # top
             delta_lat = (corners[1][1] - ey0)
             ny = np.ceil(delta_lat/dmlat).astype(int)
 
-            if ((ey0+ny*dmlat)-corners[1][1])/dmlat > 1 or ((ey0+ny*dmlat)-corners[1][1])/dmlat < 0:
+            if np.round(((ey0+ny*dmlat)-corners[1][1])/dmlat,tol) > 1 or np.round(((ey0+ny*dmlat)-corners[1][1])/dmlat,tol) < 0:
                 raise RuntimeError(ey0+ny*dmlat,corners[1][1])
 
             elat = ey0 + (np.arange(ny)+0.5)*dmlat
