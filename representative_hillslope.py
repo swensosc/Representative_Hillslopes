@@ -708,9 +708,10 @@ def CalcGeoparamsGridcell(ji, \
                     # the implied width will be negative and the trapezoid
                     # approximation will break down, so adjust base width to avoid this issue.
 
-                    Atri = -(trap_width**2)/(4*trap_slope)
-                    if Atri < trap_area:
-                        trap_width = np.sqrt(-4*trap_slope*trap_area)
+                    if trap_slope < 0:
+                        Atri = -(trap_width**2)/(4*trap_slope)
+                        if Atri < trap_area:
+                            trap_width = np.sqrt(-4*trap_slope*trap_area)
 
                 if hillslope_form == 'AnnularSection':
                     x = calc_width_parameters(fdtnd[aind],farea[aind]/number_of_hillslopes[asp_ndx],form='annular',mindtnd=ares,nhisto=10)
