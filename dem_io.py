@@ -211,7 +211,7 @@ def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
             '''
 
             # left side
-            n0 = np.float32((corners[0][0] - x0)/dmlon)
+            n0 = np.round((corners[0][0] - x0)/dmlon,tol)
             ex0 = x0 + np.floor(n0)*dmlon
 
             # ex0 should be < left edge, and within dmlon
@@ -239,7 +239,7 @@ def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
             elon = ex0 + (np.arange(nx)+0.5)*dmlon
 
             # bottom
-            m0 = np.float32((corners[0][1] - y0)/dmlat)
+            m0 = np.round((corners[0][1] - y0)/dmlat,tol)
             ey0 = y0 + np.floor(m0)*dmlat
 
             # ey0 should be < lower edge, and within dmlat
@@ -431,7 +431,7 @@ def read_ASTER_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
             '''
 
             # left side
-            n0 = np.float32((corners[0][0] - x0)/dmlon)
+            n0 = np.round((corners[0][0] - x0)/dmlon,tol)
             ex0 = x0 + np.floor(n0)*dmlon
 
             # ex0 should be < left edge, and within dmlon
@@ -459,7 +459,7 @@ def read_ASTER_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
             elon[elon >= 360] -= 360
             
             # bottom
-            m0 = np.float32((corners[0][1] - y0)/dmlat)
+            m0 = np.round((corners[0][1] - y0)/dmlat,tol)
             ey0 = y0 + np.floor(m0)*dmlat
 
             # ey0 should be < lower edge, and within dmlat
