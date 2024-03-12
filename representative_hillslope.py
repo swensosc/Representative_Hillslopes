@@ -366,7 +366,7 @@ def CalcGeoparamsGridcell(ji, \
     lowland_index = -9999
 
     chunk_mask = 0
-    
+
     col_cnt = 1
     if landmask[j,i] == 1:
         chunk_mask = 1
@@ -386,7 +386,7 @@ def CalcGeoparamsGridcell(ji, \
                 scorners[n][0] += 360
             if scorners[n][0] > 360:
                 scorners[n][0] -= 360
-                
+
         # Determine spatial scale at which to extract river network
         x = IdentifySpatialScaleLaplacian(scorners, \
                                              maxHillslopeLength=maxHillslopeLength, \

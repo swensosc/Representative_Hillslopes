@@ -459,17 +459,16 @@ def IdentifySpatialScaleLaplacian(corners, \
         if verbose:
             print('Removing smoothed elevation')
         sf = 0.75
-        if elon[0] > elon[-1]: 
-            # needed for points spanning prime meridian
-            elon2 = np.where(elon < 180,elon,elon-360)
-            elonc = np.mean(elon2)
-            delonc = np.abs(elon2[0]-elon2[-1])
-        else:
-            elonc = np.mean(elon)
-            delonc = np.abs(elon[0]-elon[-1])
-            
+
+        elonc = np.round(np.arctan2(np.mean(np.sin(dtr*elon)),np.mean(np.cos(dtr*elon)))/dtr,8)
         if elonc < 0:
             elonc += 360
+
+        dlon = elon[0]-elon[-1]
+        if np.abs(dlon) > 180:
+            dlon -= 360
+        delonc = np.abs(dlon)
+
         elatc = np.mean(elat)
         delatc = np.abs(elat[0]-elat[-1])
 
