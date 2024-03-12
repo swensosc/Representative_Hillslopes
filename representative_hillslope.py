@@ -66,9 +66,10 @@ def calc_width_parameters(dtnd,area,form='trapezoid',useAreaWeight=True,mindtnd=
         # (possible near the tail, i.e. the large d values)
         # the implied width will be negative and the trapezoid
         # approximation will break down, so adjust base width to avoid this issue.
-        Atri = -(width**2)/(4*slope)
-        if Atri < Atrap:
-            width = np.sqrt(-4*slope*Atrap)
+        if slope < 0:
+            Atri = -(width**2)/(4*slope)
+            if Atri < Atrap:
+                width = np.sqrt(-4*slope*Atrap)
                         
         return {'slope':slope,'width':width,'area':Atrap}
 
