@@ -75,6 +75,7 @@ def _bin_amplitude_spectrum(amp_fft,wavelength,nlambda=20):
             lambda_1d[n] = np.mean(wavelength[l1])
             amp_1d[n]    = np.mean(amp_fft[l1])
     ind = np.where(lambda_1d > 0)[0]
+
     return {'amp':amp_1d[ind],'lambda':lambda_1d[ind]}
 
 def _log_normal(x,amp,sigma,mu,shift=0):
@@ -522,8 +523,8 @@ def IdentifySpatialScaleLaplacian(corners, \
     # first dft is real, giving complex result w/ N/2 coefs
     # 2nd dft is complex, with N coefs
 
+    # calculate laplacian
     grad = calc_gradient(elev,elon,elat)
-    # get spectrum of divergence
     x = calc_gradient(grad[0],elon,elat)
     laplac = x[0]
     x = calc_gradient(grad[1],elon,elat)

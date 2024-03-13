@@ -84,7 +84,7 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
     
     lonmin, lonmax = int((ll_corner[0]//mres)*mres), int((ur_corner[0]//mres)*mres)
     latmin, latmax = int((ll_corner[1]//mres)*mres), int((ur_corner[1]//mres)*mres)
-    
+
     # if right boundary is multiple of tile resolution, exclude it
     if (ur_corner[0]-lonmax) == 0.0:
         lnpad = 0
@@ -184,9 +184,10 @@ def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
         # convert longitude to [0,360]
         if x0 < 0:
             x0 += 360
-
+        # coordinates of center of pixel
         mlon = (x0+0.5*dx) + dx*np.arange(xs)
         mlat = (y0+0.5*dy) + dy*np.arange(ys)
+
         dmlon = np.abs(mlon[0]-mlon[1])
         dmlat = np.abs(mlat[0]-mlat[1])
 
@@ -221,20 +222,20 @@ def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
             if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
                 raise RuntimeError('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
 
-            # right side
-            delta_lon = (corners[2][0] - ex0)
+            # right side (subtract 1 pixel width from right edge)
+            delta_lon = ((corners[2][0]-dmlon) - ex0)
             # for gridcells spanning greenwich
             if delta_lon < 0:
                 delta_lon += 360
 
             nx = np.ceil(delta_lon/dmlon).astype(int)
 
-            delta_lon = ((ex0+nx*dmlon)-corners[2][0])
+            # update delta_lon for error check
+            delta_lon = ((ex0+nx*dmlon)-(corners[2][0]-dmlon))
             if delta_lon > 360:
                 delta_lon -= 360
             if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
                 raise RuntimeError(ex0+nx*dmlon,corners[2][0])
-
 
             elon = ex0 + (np.arange(nx)+0.5)*dmlon
 
@@ -243,14 +244,17 @@ def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
             ey0 = y0 + np.floor(m0)*dmlat
 
             # ey0 should be < lower edge, and within dmlat
-            if np.round((corners[0][1]-ey0)/dmlat,tol) > 1 or np.round((corners[0][1]-ey0)/dmlat,tol) < 0:
+            delta_lat = (corners[0][1]-ey0)/dmlat
+            if np.round(delta_lat,tol) > 1 or np.round(delta_lat,tol) < 0:
                 raise RuntimeError('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
 
-            # top
-            delta_lat = (corners[1][1] - ey0)
+            # top (subtract 1 pixel width from upper edge)
+            delta_lat = ((corners[1][1]-dmlat) - ey0)
             ny = np.ceil(delta_lat/dmlat).astype(int)
 
-            if np.round(((ey0+ny*dmlat)-corners[1][1])/dmlat,tol) > 1 or np.round(((ey0+ny*dmlat)-corners[1][1])/dmlat,tol) < 0:
+            # update delta_lon for error check
+            delta_lat = ((ey0+ny*dmlat)-(corners[1][1]-dmlat))/dmlat
+            if np.round(delta_lat,tol) > 1 or np.round(delta_lat,tol) < 0:
                 raise RuntimeError(ey0+ny*dmlat,corners[1][1])
 
             elat = ey0 + (np.arange(ny)+0.5)*dmlat
@@ -281,7 +285,7 @@ def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
             print(mlat[j1:j2+1][:10])
 
         elev[j3:j4+1,i3:i4+1] = merit_elev[j1:j2+1,i1:i2+1]
-                
+
     # Adjust affine to represent actual elev bounds
     # x0,y0 should be top left pixel of raster
     dx, dy = affine.a, affine.e
