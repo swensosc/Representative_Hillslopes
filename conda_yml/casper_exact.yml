@@ -171,4 +171,3 @@ dependencies:
   - zlib=1.2.13
   - zlib-ng=2.0.7
   - zstd=1.5.5
-prefix: /glade/work/samrabin/conda-envs/Representative_Hillslopes
