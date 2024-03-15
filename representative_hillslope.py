@@ -1413,7 +1413,6 @@ class LandscapeCharacteristics(object):
         self.lon = lon
         self.lat = lat
 
-
         # calculate area
         farea = np.zeros((jm,im))
         phi  = dtr*lon
