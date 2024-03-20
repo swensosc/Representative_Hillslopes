@@ -321,7 +321,8 @@ def CalcGeoparamsGridcell(ji, \
                       hillslope_form=None, \
                       printData=False, \
                       verbose=False, \
-                      printFlush=True):
+                      printFlush=True,
+                      useMultiProcessing=False):
 
     stime = time.time()
     j,i = ji
@@ -480,7 +481,7 @@ def CalcGeoparamsGridcell(ji, \
             x = lc.CalcLandscapeCharacteristicsPysheds(corner_list[nsub], \
                                                accum_thresh=accum_thresh, \
                                                dem_file_template=dem_file_template, \
-                                               useMultiprocessing=False, \
+                                               useMultiProcessing=useMultiProcessing, \
                                                dem_source=dem_source, \
                                                maskFlooded=False, \
                                                verbose=verbose)
@@ -756,33 +757,33 @@ def CalcGeoparamsGridcell(ji, \
                         if hillslope_form == 'Trapezoidal':
                             # preserve relative areas
                             area_fraction = np.sum(farea[cind])/np.sum(farea[aind])
-                            area[asp_ndx*nbins+n] = trap_area * area_fraction
+                            area[asp_ndx*nhand_bins+n] = trap_area * area_fraction
 
                             # lower edge widths
-                            da = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n])
+                            da = np.sum(area[asp_ndx*nhand_bins:asp_ndx*nhand_bins+n])
                             le = quadratic([trap_slope,trap_width,-da])
                             we = trap_width + le*trap_slope*2
-                            width[asp_ndx*nbins+n] = we
+                            width[asp_ndx*nhand_bins+n] = we
 
                             # median distances
-                            da = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n+1])-area[asp_ndx*nbins+n]/2
+                            da = np.sum(area[asp_ndx*nhand_bins:asp_ndx*nhand_bins+n+1])-area[asp_ndx*nhand_bins+n]/2
                             ld = quadratic([trap_slope,trap_width,-da])
-                            dtnd[asp_ndx*nbins+n] = ld
+                            dtnd[asp_ndx*nhand_bins+n] = ld
                             
                         if hillslope_form == 'AnnularSection':
                             # preserve relative areas
                             area_fraction = np.sum(farea[cind])/np.sum(farea[aind])
-                            area[asp_ndx*nbins+n] = ann_area * area_fraction
+                            area[asp_ndx*nhand_bins+n] = ann_area * area_fraction
 
                             # lower edge distances and widths
-                            asum = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n])
+                            asum = np.sum(area[asp_ndx*nhand_bins:asp_ndx*nhand_bins+n])
                             ri = np.sqrt((Asec-asum)*(2/alpha))
-                            width[asp_ndx*nbins+n] = alpha*ri
+                            width[asp_ndx*nhand_bins+n] = alpha*ri
 
                             # median distances and widths
-                            asum = np.sum(area[asp_ndx*nbins:asp_ndx*nbins+n+1])-area[asp_ndx*nbins+n]/2
+                            asum = np.sum(area[asp_ndx*nhand_bins:asp_ndx*nhand_bins+n+1])-area[asp_ndx*nhand_bins+n]/2
                             ri = np.sqrt((Asec-asum)*(2/alpha))
-                            dtnd[asp_ndx*nbins+n] = (hill_length - ri)
+                            dtnd[asp_ndx*nhand_bins+n] = (hill_length - ri)
                         
                         '''
                         aspect needs to be averaged using circular 
@@ -962,6 +963,7 @@ def CalcGeoparamsGridcell(ji, \
             timetag=subprocess.Popen(command,stdout=subprocess.PIPE,shell='True').communicate()[0].strip().decode()
 
             w = netcdf4.Dataset(outfile,'w')
+            print(f"outfile: {outfile}")
             w.creation_date = timetag
 
             w.createDimension('lsmlon',1)
@@ -1139,7 +1141,7 @@ class LandscapeCharacteristics(object):
                                             dem_file_template=None, \
                                             fill_value = -9999, \
                                             useConsistentChannelMask=True, \
-                                            useMultiprocessing=True, \
+                                            useMultiProcessing=True, \
                                             npools=4, \
                                             dem_source='MERIT', \
                                             maskFlooded=True, \
@@ -1434,7 +1436,7 @@ class LandscapeCharacteristics(object):
             print('averaging aspect across catchments')
         aspect2d_catchment_mean = np.zeros((jm,im))
         uid = np.unique(self.drainage_id[np.isfinite(self.drainage_id)])
-        if useMultiprocessing:
+        if useMultiProcessing:
             # parallel version
             if verbose:
                 stime = time.time()

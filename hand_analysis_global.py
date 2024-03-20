@@ -3,6 +3,7 @@
 
 import time
 import argparse
+import os
 import numpy as np
 import netCDF4 as netcdf4
 from numpy.random import default_rng
@@ -12,43 +13,65 @@ from representative_hillslope import CalcGeoparamsGridcell
 # Create representative hillslope geomorphic parameters
 parser = argparse.ArgumentParser(description='Geomorphic parameter analysis')
 parser.add_argument("cndx", help="chunk", nargs='?',type=int,default=0)
-parser.add_argument("-o", "--overwrite", help="overwrite", action="store_true",default=False)
+parser.add_argument("--overwrite", help="overwrite", action="store_true",default=False)
 parser.add_argument("-d", "--debug", help="print debugging info", action="store_true",default=False)
 parser.add_argument("-t", "--timer", help="print timing info", action="store_true",default=False)
 parser.add_argument("--pt", help="location", nargs='?',type=int,default=0)
 parser.add_argument("--form", help="hillslope form", nargs='?',type=int,default=0)
+parser.add_argument("--sfcfile", help="Surface dataset from which grid should be taken",
+                    default="surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc")
+parser.add_argument("-o", "--output-dir",
+                    help="Directory where output file should be saved (default: current dir)",
+                    default=os.getcwd())
+parser.add_argument("--use-multi-processing", action="store_true", dest="useMultiProcessing",
+                    help="Use multiple processors")
+
+default_nchunks = 6
+parser.add_argument(
+    "--nchunks", type=int, default=default_nchunks,
+    help=f"Number of chunks to split processing into (default: {default_nchunks})",
+)
+
+dem_source_default = "MERIT"
+dem_data_path_default = os.path.join("MERIT", "data")
+parser.add_argument("--dem-source", "--dem_source", type=str, default=dem_source_default,
+                    help=f"DEM to use (default: {dem_source_default})")
+parser.add_argument("--dem-data-path", type=str, default=dem_data_path_default,
+                    help=f"Path to DEM source data (default: {dem_data_path_default})")
+
+parser.add_argument(
+    "--no-add-stream-channel-vars", action="store_false", dest="addStreamChannelVariables",
+    help="Do not add stream channel variables",
+    )
+parser.add_argument(
+    "--no-detrend-elevation", action="store_false", dest="detrendElevation",
+    help="Do not detrend elevation",
+    )
+
 args = parser.parse_args()
 
-cndx = args.cndx
+# Check paths
+if not os.path.exists(args.sfcfile):
+    raise FileNotFoundError(f"sfcfile not found: {args.sfcfile}")
+if not os.path.exists(args.dem_data_path):
+    raise FileNotFoundError(f"dem_data_path not found: {args.dem_data_path}")
+if not os.path.exists(args.output_dir):
+    os.makedirs(args.output_dir)
 
-# chunk data 
-nChunks = 6
-totalChunks = nChunks*nChunks
-if cndx < 0 or cndx > totalChunks:
-    raise RuntimeError('cndx must be 1-{:d}'.format(totalChunks))
-if cndx == 0 and args.pt < 1:
-    raise RuntimeError('cndx = 0; select a pt with --pt')
+# Check and process chunk settings
+totalChunks = args.nchunks*args.nchunks
+if args.cndx < 0 or args.cndx > totalChunks:
+    raise RuntimeError('args.cndx must be 1-{:d}'.format(totalChunks))
+if args.cndx == 0 and args.pt < 1:
+    raise RuntimeError('args.cndx = 0; select a pt with --pt')
 
-print('Chunk ', cndx)
-chunkLabel = '{:02d}'.format(cndx)
+print('Chunk ', args.cndx)
+chunkLabel = '{:02d}'.format(args.cndx)
 
 doTimer = args.timer
 
 if doTimer:
     stime = time.time()
-
-addStreamChannelVariables = True
-    
-useMultiprocessing = False
-#useMultiprocessing = True
-
-detrendElevation = True
-
-setMinToZero = True
-
-filterElevation = True
-
-applyOceanMask = False
 
 # set maximum hillslope length [m]
 maxHillslopeLength = 10 * 1e3
@@ -100,21 +123,23 @@ asp_name = ['north','east','south','west']
 ncolumns_per_gridcell = naspect * nbins
 nhillslope = naspect
 
-# use MERIT dem
-dem_source = 'MERIT'
-
-# define regions from gridcells in surface data file
-sfcfile = 'surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc'
-odir = './'
-outfile = odir + 'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc'
+# Define output file template
+outfile_template = os.path.join(
+    args.output_dir,
+    'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc',
+)
         
 # Select DEM source data
-if dem_source == 'MERIT':
-    efile0 = 'MERIT/data/elv_DirTag/TileTag_elv.tif'
-    outfile = outfile.replace('.nc','_MERIT.nc')
+if args.dem_source == 'MERIT':
+    efile0 = os.path.join(args.dem_data_path, "elv_DirTag", "TileTag_elv.tif")
+    outfile_template = outfile_template.replace('.nc','_MERIT.nc')
     print('\ndem template files: ',efile0,'\n')
+else:
+    raise ValueError(f"Invalid setting for --dem-source: {args.dem_source}")
 
-f = netcdf4.Dataset(sfcfile, 'r')
+print(f"Output filename template: {outfile_template}")
+
+f = netcdf4.Dataset(args.sfcfile, 'r')
 slon2d = np.asarray(f.variables['LONGXY'][:,])
 slat2d = np.asarray(f.variables['LATIXY'][:,])
 slon = np.squeeze(slon2d[0,:])                                 
@@ -151,7 +176,7 @@ downhill_column_index  = np.zeros((ncolumns_per_gridcell,sjm,sim))
 
 nhillcolumns = np.zeros((sjm,sim))
 
-if addStreamChannelVariables:
+if args.addStreamChannelVariables:
     wdepth = np.zeros((sjm,sim))
     wwidth = np.zeros((sjm,sim))
     wslope = np.zeros((sjm,sim))
@@ -185,10 +210,10 @@ else:
     jstart, jend = 0, sjm
     verbose = args.debug
 
-    nichunk = int(sim//nChunks)
-    njchunk = int(sjm//nChunks)
-    i = (cndx-1)//nChunks
-    j = np.mod((cndx-1),nChunks)
+    nichunk = int(sim//args.nchunks)
+    njchunk = int(sjm//args.nchunks)
+    i = (args.cndx-1)//args.nchunks
+    j = np.mod((args.cndx-1),args.nchunks)
     istart,iend = i*nichunk,min([(i+1)*nichunk,sim])
     jstart,jend = j*njchunk,min([(j+1)*njchunk,sjm])
 
@@ -208,7 +233,8 @@ for j in range(jstart,jend):
         if landmask[j,i] == 1:
             ji_pairs.append([j,i])
             
-print('number of points ',len(ji_pairs),'\n')
+n_points = len(ji_pairs)
+print('number of points ',n_points,'\n')
     
 # randomize point list to avoid multiple processes working on same point
 randomizePointList = False
@@ -220,27 +246,30 @@ if randomizePointList:
     ji_pairs = ji_pair_array.tolist()
 
 # loop over point list
-for k in ji_pairs:
+for index, k in enumerate(ji_pairs):
     j,i = k
-    print('Beginning gridcell ',j,i,flush=printFlush)
-    x = CalcGeoparamsGridcell([j,i], \
-                              lon2d=slon2d, \
-                              lat2d=slat2d, \
-                              landmask=landmask, \
-                              nhand_bins=nbins, \
-                              aspect_bins=aspect_bins, \
-                              ncolumns_per_gridcell=ncolumns_per_gridcell, \
-                              maxHillslopeLength=maxHillslopeLength,
-                              hillslope_form=hillslope_form, \
-                              dem_file_template=efile0, \
-                              detrendElevation=detrendElevation, \
-                              nlambda=nlambda, \
-                              dem_source=dem_source, \
-                              flagBasins=flagBasins, \
-                              outfile_template=outfile, \
-                              overwrite=args.overwrite, \
-                              printData=checkSinglePoint, \
-                              verbose=verbose)
+    print(f"Beginning gridcell {j} {i} ({index+1}/{n_points})", flush=printFlush)
+    CalcGeoparamsGridcell(
+        [j, i],
+        lon2d=slon2d,
+        lat2d=slat2d,
+        landmask=landmask,
+        nhand_bins=nbins,
+        aspect_bins=aspect_bins,
+        ncolumns_per_gridcell=ncolumns_per_gridcell,
+        maxHillslopeLength=maxHillslopeLength,
+        hillslope_form=hillslope_form,
+        dem_file_template=efile0,
+        detrendElevation=args.detrendElevation,
+        nlambda=nlambda,
+        dem_source=args.dem_source,
+        flagBasins=flagBasins,
+        outfile_template=outfile_template,
+        overwrite=args.overwrite,
+        printData=checkSinglePoint,
+        verbose=verbose,
+        useMultiProcessing=args.useMultiProcessing,
+    )
 
 if doTimer:
     etime = time.time()
