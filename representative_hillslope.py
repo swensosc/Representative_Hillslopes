@@ -1224,7 +1224,7 @@ class LandscapeCharacteristics(object):
                 print('flats resolved')
         except ValueError:
             print('flats cannot be resolved')
-            grid.add_gridded_data(np.asarray(grid.dem),'inflated_dem',affine=grid.affine,crs=grid.crs,nodata=fill_value)
+            grid.add_gridded_data(grid.dem,'inflated_dem',nodata=fill_value)
 
         # Set flat areas to fill_value
         # identify flooded regions in lowest hand bin
