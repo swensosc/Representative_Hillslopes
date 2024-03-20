@@ -461,7 +461,8 @@ def IdentifySpatialScaleLaplacian(corners, \
         print('max wavelength for hillslope, jm, im: ',maxWavelength,ejm,eim,'\n')
         print('land fraction ',land_frac)
 
-    if land_frac == 0:
+    min_land_fraction = 0.01
+    if land_frac <= min_land_fraction:
         return {'validDEM':False} 
     if land_frac <  land_threshold:
         if verbose:
