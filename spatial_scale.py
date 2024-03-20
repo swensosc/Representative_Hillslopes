@@ -169,7 +169,11 @@ def _fit_peak_lognormal(x,y,verbose=False):
 
         # exclude peaks that are below a height threshold
         if peak_gof[-1] < 1e6 and popt_1lognorm[0] > meansig:
-            peak_sharp.append((x[-1]-x[0])/popt_1lognorm[1])
+            lnvar = np.sqrt((np.exp(popt_1lognorm[1]**2)-1)*(np.exp(2*popt_1lognorm[2]+popt_1lognorm[1]**2)))
+            # relative width and amplitude
+            rwid = lnvar/(x[-1]-x[0])
+            ramp = popt_1lognorm[0]/np.max(y)
+            peak_sharp.append(ramp/rwid)
         else:
             peak_sharp.append(0)
         
@@ -268,7 +272,10 @@ def _fit_peak_gaussian(x,y,verbose=False):
 
         # exclude peaks that are below a height threshold
         if peak_gof[-1] < 1e6 and popt_1gauss[0] > meansig:
-            peak_sharp.append((x[-1]-x[0])/popt_1gauss[2])
+            # relative width and amplitude
+            rwid = popt_1gauss[2]/(x[-1]-x[0])
+            ramp = popt_1gauss[0]/np.max(y)
+            peak_sharp.append(ramp/rwid)
         else:
             peak_sharp.append(0)
         
