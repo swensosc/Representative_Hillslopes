@@ -7,7 +7,7 @@ dependencies:
   - gdal=3.7.1
   - geojson
   - netcdf4
-  - numpy
+  - numpy=1.23.5
   - packaging
   - pandas
   - pip
@@ -15,4 +15,5 @@ dependencies:
   - python
   - rasterio
   - scipy
+  - scikit-image
 

@@ -69,6 +69,85 @@ def create_subregion_corner_lists(corners,central_point,ensurePositive=True):
                     
     return corner_list
 
+def _check_files_exist(dem_file_template, efiles):
+    emask = np.ones(efiles.size, dtype=bool)
+    for n in range(efiles.size):
+        geofile = efiles[n]
+        command=['ls',geofile]
+        file_exists=subprocess.run(command,capture_output=True).returncode
+        if file_exists > 0:
+            emask[n] = False
+    if not np.any(emask):
+        print("All DEM files missing:")
+        for file in efiles:
+            print(f"   {file}")
+        raise FileNotFoundError(f"No DEM files found matching template: {dem_file_template}")
+    efiles = efiles[emask]
+    return efiles
+
+def _create_grid(corners, x0, y0, dmlon, dmlat, which_dem, tol):
+    '''
+    identify closest points to corners on DEM grid,
+    ensuring that the region they define is larger than
+    the region defined by corners
+    '''
+
+    # left side
+    n0 = np.round((corners[0][0] - x0)/dmlon, tol)
+    ex0 = x0 + np.floor(n0)*dmlon
+
+    # ex0 should be < left edge, and within dmlon
+    delta_lon = (corners[0][0]-ex0)
+    if delta_lon > 360:
+        delta_lon -= 360
+    if np.round(delta_lon/dmlon, tol) > 1 or np.round(delta_lon/dmlon, tol) < 0:
+        raise RuntimeError('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
+
+    # right side (subtract 1 pixel width from right edge)
+    delta_lon = (corners[2][0] - dmlon) - ex0
+    # for gridcells spanning greenwich
+    if delta_lon < 0:
+        delta_lon += 360
+
+    nx = np.ceil(delta_lon/dmlon).astype(int)
+
+    # update delta_lon for error check
+    delta_lon = (ex0 + nx * dmlon) - (corners[2][0] - dmlon)
+    if delta_lon > 360:
+        delta_lon -= 360
+    if np.round(delta_lon/dmlon, tol) > 1 or np.round(delta_lon/dmlon, tol) < 0:
+        raise RuntimeError(ex0+nx*dmlon,corners[2][0])
+
+    elon = ex0 + (np.arange(nx)+0.5)*dmlon
+    if which_dem == "ASTER":
+        elon[elon >= 360] -= 360
+    elif which_dem != "MERIT":
+        raise RuntimeError(f"Unrecognized DEM: {which_dem}")
+
+    # bottom
+    m0 = np.round((corners[0][1] - y0)/dmlat,tol)
+    ey0 = y0 + np.floor(m0)*dmlat
+
+    # ey0 should be < lower edge, and within dmlat
+    delta_lat = (corners[0][1] - ey0) / dmlat
+    if np.round(delta_lat, tol) > 1 or np.round(delta_lat, tol) < 0:
+        raise RuntimeError('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
+
+    # top (subtract 1 pixel width from upper edge)
+    delta_lat = (corners[1][1] - dmlat) - ey0
+    ny = np.ceil(delta_lat/dmlat).astype(int)
+
+    # update delta_lon for error check
+    delta_lat = ((ey0 + ny * dmlat) - (corners[1][1] - dmlat)) / dmlat
+    if np.round(delta_lat, tol) > 1 or np.round(delta_lat, tol) < 0:
+        raise RuntimeError(ey0+ny*dmlat,corners[1][1])
+
+    elat = ey0 + (np.arange(ny)+0.5)*dmlat
+
+    # initialize output array
+    elev = np.zeros((ny,nx))
+    return elon,elat,elev
+
 def _get_MERIT_dem_filenames(dem_file_template,corners):
     # dem_file_template is assumed to have form of:
     # 'my_path/elv_DirTag/TileTag_elv.tif'
@@ -81,7 +160,7 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
     # round to correct numbers that are just slightly less than integer
     ll_corner = [np.round(corners[0][0],sigfigs),np.round(corners[0][1],sigfigs)]
     ur_corner = [np.round(corners[-1][0],sigfigs),np.round(corners[-1][1],sigfigs)]
-    
+
     lonmin, lonmax = int((ll_corner[0]//mres)*mres), int((ur_corner[0]//mres)*mres)
     latmin, latmax = int((ll_corner[1]//mres)*mres), int((ur_corner[1]//mres)*mres)
 
@@ -100,7 +179,7 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
     # ensure lonmax > lonmin for regions spanning prime meridian
     if lonmax < lonmin:
         lonmax += 360
-    
+
     nlon = lonmin + np.arange((lonmax - lonmin)//mres + lnpad)*mres
     nlat = latmin + np.arange((latmax - latmin)//mres + ltpad)*mres
 
@@ -127,10 +206,10 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
 
             abstlon = abs(dir_tlon)
             lonstr  = '{:03d}'.format(abstlon)
-            
+
             abstlat = abs(dir_tlat)
             latstr  = '{:02d}'.format(abstlat)
-            
+
             dirtag = _north_or_south(tlat)+latstr \
                      +_east_or_west(tlon)+lonstr
 
@@ -143,14 +222,7 @@ def _get_MERIT_dem_filenames(dem_file_template,corners):
 
     # check that all files exist (call returns 0)
     # (corners may extend beyond existing dem tiles)
-    emask = np.ones(efiles.size, dtype=bool)
-    for n in range(efiles.size):
-        geofile = efiles[n]
-        command=['ls',geofile]
-        file_exists=subprocess.run(command,capture_output=True).returncode
-        if file_exists > 0:
-            emask[n] = False
-    efiles = efiles[emask]
+    efiles = _check_files_exist(dem_file_template, efiles)
 
     return efiles
 
@@ -174,7 +246,7 @@ def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
             # reorder geotransform to affine convention
             aff = [float(ds.GetGeoTransform()[i]) for i in [1,2,0,4,5,3]]
             affine = rasterio.Affine(*aff)
-        
+
         # merit latitude is N->S
         merit_elev = ds.ReadAsArray()
         xs = ds.RasterXSize
@@ -205,62 +277,7 @@ def read_MERIT_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
 
         # create grid that will be filled sequentially by dem files
         if nfile==0:
-            '''
-            identify closest points to corners on MERIT grid,
-            ensuring that the region they define is larger than
-            the region defined by corners
-            '''
-
-            # left side
-            n0 = np.round((corners[0][0] - x0)/dmlon,tol)
-            ex0 = x0 + np.floor(n0)*dmlon
-
-            # ex0 should be < left edge, and within dmlon
-            delta_lon = (corners[0][0]-ex0)
-            if delta_lon > 360:
-                delta_lon -= 360
-            if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
-                raise RuntimeError('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
-
-            # right side (subtract 1 pixel width from right edge)
-            delta_lon = ((corners[2][0]-dmlon) - ex0)
-            # for gridcells spanning greenwich
-            if delta_lon < 0:
-                delta_lon += 360
-
-            nx = np.ceil(delta_lon/dmlon).astype(int)
-
-            # update delta_lon for error check
-            delta_lon = ((ex0+nx*dmlon)-(corners[2][0]-dmlon))
-            if delta_lon > 360:
-                delta_lon -= 360
-            if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
-                raise RuntimeError(ex0+nx*dmlon,corners[2][0])
-
-            elon = ex0 + (np.arange(nx)+0.5)*dmlon
-
-            # bottom
-            m0 = np.round((corners[0][1] - y0)/dmlat,tol)
-            ey0 = y0 + np.floor(m0)*dmlat
-
-            # ey0 should be < lower edge, and within dmlat
-            delta_lat = (corners[0][1]-ey0)/dmlat
-            if np.round(delta_lat,tol) > 1 or np.round(delta_lat,tol) < 0:
-                raise RuntimeError('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
-
-            # top (subtract 1 pixel width from upper edge)
-            delta_lat = ((corners[1][1]-dmlat) - ey0)
-            ny = np.ceil(delta_lat/dmlat).astype(int)
-
-            # update delta_lon for error check
-            delta_lat = ((ey0+ny*dmlat)-(corners[1][1]-dmlat))/dmlat
-            if np.round(delta_lat,tol) > 1 or np.round(delta_lat,tol) < 0:
-                raise RuntimeError(ey0+ny*dmlat,corners[1][1])
-
-            elat = ey0 + (np.arange(ny)+0.5)*dmlat
-
-            # initialize output array
-            elev = np.zeros((ny,nx))
+            elon, elat, elev = _create_grid(corners, x0, y0, dmlon, dmlat, "MERIT", tol)
 
         # locate dem tile within grid
 
@@ -360,14 +377,7 @@ def _get_ASTER_dem_filenames(dem_file_template,corners):
 
     # check that all files exist (call returns 0)
     # (corners may extend beyond existing dem tiles)
-    emask = np.ones(efiles.size, dtype=bool)
-    for n in range(efiles.size):
-        geofile = efiles[n]
-        command=['ls',geofile]
-        file_exists=subprocess.run(command,capture_output=True).returncode
-        if file_exists > 0:
-            emask[n] = False
-    efiles = efiles[emask]
+    efiles = _check_files_exist(dem_file_template, efiles)
 
     return efiles
 
@@ -428,59 +438,7 @@ def read_ASTER_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
 
         # create grid that will be filled sequentially by dem files
         if nfile==0:
-            '''
-            identify closest points to corners on ASTER grid,
-            ensuring that the region they define is larger than
-            the region defined by corners
-            '''
-
-            # left side
-            n0 = np.round((corners[0][0] - x0)/dmlon,tol)
-            ex0 = x0 + np.floor(n0)*dmlon
-
-            # ex0 should be < left edge, and within dmlon
-            delta_lon = (corners[0][0]-ex0)
-            if delta_lon > 360:
-                delta_lon -= 360
-            if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
-                raise RuntimeError('ex0 ',ex0,corners[0][0],(corners[0][0]-ex0)/dmlon)
-
-            # right side
-            delta_lon = (corners[2][0] - ex0)
-            # for gridcells spanning greenwich
-            if delta_lon < 0:
-                delta_lon += 360
-
-            nx = np.ceil(delta_lon/dmlon).astype(int)
-
-            delta_lon = ((ex0+nx*dmlon)-corners[2][0])
-            if delta_lon > 360:
-                delta_lon -= 360
-            if np.round(delta_lon/dmlon,tol) > 1 or np.round(delta_lon/dmlon,tol) < 0:
-                raise RuntimeError(ex0+nx*dmlon,corners[2][0])
-
-            elon = ex0 + (np.arange(nx)+0.5)*dmlon
-            elon[elon >= 360] -= 360
-            
-            # bottom
-            m0 = np.round((corners[0][1] - y0)/dmlat,tol)
-            ey0 = y0 + np.floor(m0)*dmlat
-
-            # ey0 should be < lower edge, and within dmlat
-            if np.round((corners[0][1]-ey0)/dmlat,tol) > 1 or np.round((corners[0][1]-ey0)/dmlat,tol) < 0:
-                raise RuntimeError('ey0 ',ey0,corners[0][1],(corners[0][1]-ey0)/dmlat)
-
-            # top
-            delta_lat = (corners[1][1] - ey0)
-            ny = np.ceil(delta_lat/dmlat).astype(int)
-
-            if np.round(((ey0+ny*dmlat)-corners[1][1])/dmlat,tol) > 1 or np.round(((ey0+ny*dmlat)-corners[1][1])/dmlat,tol) < 0:
-                raise RuntimeError(ey0+ny*dmlat,corners[1][1])
-
-            elat = ey0 + (np.arange(ny)+0.5)*dmlat
-
-            # initialize output array
-            elev = np.zeros((ny,nx))
+            elon, elat, elev = _create_grid(corners, x0, y0, dmlon, dmlat, "ASTER", tol)
 
         # locate dem tile within grid
 
@@ -520,4 +478,3 @@ def read_ASTER_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
     elev = np.flipud(elev)
 
     return {'elev':elev,'lon':elon,'lat':elat,'crs':crs,'affine':affine,'validDEM':validDEM}
-
