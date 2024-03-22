@@ -1,4 +1,4 @@
 [submodule "pysheds"]
-	path = pysheds
-	url = https://github.com/samsrabin/pysheds-sean
-    branch = ssr
+    path = pysheds
+    url = https://github.com/swensosc/pysheds
+    tag = d98738d
