@@ -83,6 +83,21 @@ parser.add_argument(
     help="Do not detrend elevation",
 )
 
+default_n_bins = 4
+parser.add_argument(
+    "--n-bins",
+    type=int,
+    default=default_n_bins,
+    help="number of elevation bins",
+)
+default_n_aspect = 4
+parser.add_argument(
+    "--n-aspect",
+    type=int,
+    default=default_n_aspect,
+    help="number of aspect bins (ordered N, E, S, W)",
+)
+
 args = parser.parse_args()
 
 # Check paths
@@ -136,16 +151,12 @@ makePlot = False
 # Set parameters used to define hillslope discretization
 dtr = np.pi / 180.0
 re = 6.371e6
-# number of elevation bins
-nbins = 4
-# number of aspect bins (ordered N, E, S, W)
-naspect = 4
 aspect_bins = [[315, 45], [45, 135], [135, 225], [225, 315]]
 aspect_labels = ["North", "East", "South", "West"]
 asp_name = ["north", "east", "south", "west"]
 # number of total hillslope elements
-ncolumns_per_gridcell = naspect * nbins
-nhillslope = naspect
+ncolumns_per_gridcell = args.n_aspect * args.n_bins
+nhillslope = args.n_aspect
 
 # Define output file template
 outfile_template = os.path.join(
@@ -153,7 +164,7 @@ outfile_template = os.path.join(
     "chunk_"
     + chunkLabel
     + "_HAND_"
-    + str(nbins)
+    + str(args.n_bins)
     + "_col_hillslope_geo_params_section_quad.nc",
 )
 
@@ -296,7 +307,7 @@ for index, k in enumerate(ji_pairs):
         lon2d=slon2d,
         lat2d=slat2d,
         landmask=landmask,
-        nhand_bins=nbins,
+        nhand_bins=args.n_bins,
         aspect_bins=aspect_bins,
         ncolumns_per_gridcell=ncolumns_per_gridcell,
         maxHillslopeLength=maxHillslopeLength,
