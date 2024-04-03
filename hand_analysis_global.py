@@ -17,7 +17,13 @@ parser.add_argument("--overwrite", help="overwrite", action="store_true",default
 parser.add_argument("-d", "--debug", help="print debugging info", action="store_true",default=False)
 parser.add_argument("-t", "--timer", help="print timing info", action="store_true",default=False)
 parser.add_argument("--pt", help="location", nargs='?',type=int,default=0)
-parser.add_argument("--form", help="hillslope form", nargs='?',type=int,default=0)
+parser.add_argument(
+    "--hillslope-form",
+    help="hillslope form",
+    type=str,
+    default="Trapezoidal",
+    choices=["Trapezoidal", "AnnularSection", "CircularSection", "TriangularSection"],
+)
 parser.add_argument("--sfcfile", help="Surface dataset from which grid should be taken",
                     default="surfdata_0.9x1.25_78pfts_CMIP6_simyr2000_c170824.nc")
 parser.add_argument("-o", "--output-dir",
@@ -75,16 +81,6 @@ if doTimer:
 
 # set maximum hillslope length [m]
 maxHillslopeLength = 10 * 1e3
-
-# select hillslope plan form to use
-if args.form == 0:
-    hillslope_form = 'Trapezoidal'
-if args.form == 1:
-    hillslope_form = 'AnnularSection'
-if args.form == 2:
-    hillslope_form = 'CircularSection'
-if args.form == 3:
-    hillslope_form = 'TriangularSection'
 
 # set number of bins for spectra
 nlambda = 30
