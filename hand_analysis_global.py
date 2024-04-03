@@ -168,7 +168,7 @@ outfile_template = os.path.join(
     + chunkLabel
     + "_HAND_"
     + str(args.n_bins)
-    + "_col_hillslope_geo_params_section_quad.nc",
+    + f"_col_hillslope_geo_params_{args.hillslope_form}.nc",
 )
 
 # Select DEM source data
