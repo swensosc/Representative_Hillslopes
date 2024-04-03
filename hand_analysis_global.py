@@ -151,9 +151,12 @@ makePlot = False
 # Set parameters used to define hillslope discretization
 dtr = np.pi / 180.0
 re = 6.371e6
-aspect_bins = [[315, 45], [45, 135], [135, 225], [225, 315]]
-aspect_labels = ["North", "East", "South", "West"]
-asp_name = ["north", "east", "south", "west"]
+if args.n_aspect == 4:
+    aspect_bins = [[315, 45], [45, 135], [135, 225], [225, 315]]
+    aspect_labels = ["North", "East", "South", "West"]
+    asp_name = ["north", "east", "south", "west"]
+else:
+    raise RuntimeError(f"Unhandled --n-aspect: {args.n_aspect}")
 # number of total hillslope elements
 ncolumns_per_gridcell = args.n_aspect * args.n_bins
 nhillslope = args.n_aspect
