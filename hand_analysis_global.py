@@ -314,7 +314,7 @@ for index, k in enumerate(ji_pairs):
         aspect_bins=aspect_bins,
         ncolumns_per_gridcell=ncolumns_per_gridcell,
         maxHillslopeLength=maxHillslopeLength,
-        hillslope_form=hillslope_form,
+        hillslope_form=args.hillslope_form,
         dem_file_template=efile0,
         detrendElevation=args.detrendElevation,
         nlambda=nlambda,
