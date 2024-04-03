@@ -88,14 +88,14 @@ parser.add_argument(
     "--n-bins",
     type=int,
     default=default_n_bins,
-    help="number of elevation bins",
+    help=f"Number of elevation bins (default: {default_n_bins})",
 )
 default_n_aspect = 4
 parser.add_argument(
     "--n-aspect",
     type=int,
     default=default_n_aspect,
-    help="number of aspect bins (ordered N, E, S, W)",
+    help=f"Number of aspect bins (ordered clockwise from N; default: {default_n_aspect})",
 )
 
 args = parser.parse_args()
