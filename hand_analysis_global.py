@@ -126,7 +126,7 @@ nhillslope = naspect
 # Define output file template
 outfile_template = os.path.join(
     args.output_dir,
-    'chunk_'+chunkLabel+'_HAND_'+str(nbins)+'_col_hillslope_geo_params_section_quad.nc',
+    'chunk_{}_HAND_{:d}_col_hillslope_geo_params_{}.nc'.format(chunkLabel,nbins,hillslope_form),
 )
         
 # Select DEM source data
