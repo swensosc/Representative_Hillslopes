@@ -13,7 +13,7 @@ batch_submit_preamble_script="${scriptdir}/batch_submit_preamble.sh"
 nchunks=6
 dry_run=0
 
-script="hand_analysis_1deg.sh"
+script="$0"
 function usage {
     echo " "
     echo -e "usage: $script FSURDAT_FILE DEMDATA_DIR OUTPUT_DIR [-n/--nchunks]\n"
