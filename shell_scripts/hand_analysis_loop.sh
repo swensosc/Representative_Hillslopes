@@ -2,7 +2,7 @@
 set -e
 
 scriptdir="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-call_hand_analysis_script="${scriptdir}/call_hand_analysis.sh"
+call_hand_analysis_script="${scriptdir}/hand_analysis_1chunk.sh"
 batch_submit_preamble_script="${scriptdir}/batch_submit_preamble.sh"
 
 ##########################
@@ -130,7 +130,7 @@ for cndx in $(seq 1 ${nchunks_sq}); do
     if [[ -f ${batch_submit_preamble_script} ]]; then
         cmd="${cmd} $(. ${scriptdir}/batch_submit_preamble.sh)"
     fi
-    $cmd "${call_hand_analysis_script}" "${fsurdat}" "${demdata}" "${outdir}" ${cndx} ${nchunks} "${done_file}"
+    $cmd "${call_hand_analysis_script}" "${fsurdat}" "${demdata}" "${outdir}" ${cndx} ${nchunks} --done-file "${done_file}"
     if [[ ${dry_run} -eq 1 ]]; then
         echo " "
     fi
