@@ -1,2 +1,5 @@
 __pycache__
 *.swp
+shell_scripts/1chunk_preamble.sh
+shell_scripts/batch_submit_preamble.sh
+.vscode/
