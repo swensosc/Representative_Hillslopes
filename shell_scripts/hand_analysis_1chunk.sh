@@ -84,7 +84,8 @@ fi
 if [[ -f "${onechunk_preamble_script}" ]]; then
     cmd="$cmd $(. "${onechunk_preamble_script}")"
 fi
-$cmd "${python_script}" --sfcfile "${fsurdat}" --dem-data-path "${demdata}" -o "${outdir}" ${cndx}
+
+$cmd "${python_script}" --sfcfile "${fsurdat}" --dem-data-path "${demdata}" -o "${outdir}" --nchunks $nchunks ${cndx} --debug
 
 if [[ ${dry_run} -eq 0 && "${done_file}" != "" ]]; then
    mkdir -p "$(dirname "${done_file}")"
