@@ -363,9 +363,7 @@ def _fit_peak_gaussian(x, y):
     return {"coefs": pgauss, "psharp": psharp, "gof": pgof}
 
 
-def _LocatePeak(
-    lambda_1d, ratio_var_to_lambda, maxWavelength=1e6, minWavelength=1
-):
+def _LocatePeak(lambda_1d, ratio_var_to_lambda, maxWavelength=1e6, minWavelength=1):
     """
     Fit ratio of variance to wavelength using linear and gaussian models.
     """
@@ -668,9 +666,7 @@ def IdentifySpatialScaleLaplacian(
     lambda_1d, laplac_amp_1d = x["lambda"], x["amp"]
 
     # fit curve in window around fit_peaks
-    x = _LocatePeak(
-        lambda_1d, laplac_amp_1d, maxWavelength=maxWavelength
-    )
+    x = _LocatePeak(lambda_1d, laplac_amp_1d, maxWavelength=maxWavelength)
 
     model = x["model"]
     spatialScale = x["spatialScale"]
@@ -681,9 +677,7 @@ def IdentifySpatialScaleLaplacian(
     spatialScale = np.max([spatialScale, minWavelength])
 
     debug("\n")
-    debug(
-            "model, spatial scale, selection method: ", model, spatialScale, selection
-        )
+    debug("model, spatial scale, selection method: ", model, spatialScale, selection)
 
     return {
         "model": model,

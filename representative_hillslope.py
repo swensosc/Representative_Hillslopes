@@ -455,9 +455,7 @@ def CalcGeoparamsGridcell(
         if gsf < 0.5:
             sf = sf * (gsf / 0.5)
 
-        debug(
-            "spatial scale in meters, grid spacing ", scale_in_meters, grid_spacing
-        )
+        debug("spatial scale in meters, grid spacing ", scale_in_meters, grid_spacing)
         debug("accum_thresh, grid scalar ", accum_thresh, sf)
         debug("ratio grid size to spatial scale ", gs_ratio)
 
@@ -635,10 +633,10 @@ def CalcGeoparamsGridcell(
             return [-1]
         elif hand_insufficient_data:
             debug(
-                    "fraction of region hand > 0 {:10.6f}, skipping...".format(
-                        hand_coverage_fraction
-                    )
+                "fraction of region hand > 0 {:10.6f}, skipping...".format(
+                    hand_coverage_fraction
                 )
+            )
             return [-1]
         else:
             # continue processing data if some valid hand data exist
@@ -728,12 +726,12 @@ def CalcGeoparamsGridcell(
         number_of_hillslopes = np.zeros((naspect))
         for asp_ndx in range(naspect):
             debug(
-                    "----  Beginning aspect ",
-                    asp_ndx + 1,
-                    " of ",
-                    naspect,
-                    " --------------------------",
-                )
+                "----  Beginning aspect ",
+                asp_ndx + 1,
+                " of ",
+                naspect,
+                " --------------------------",
+            )
             if asp_ndx == 0:
                 aind = np.where(
                     np.logical_or(
@@ -896,7 +894,9 @@ def CalcGeoparamsGridcell(
                         aspect[asp_ndx * nhand_bins + n] = mean_aspect
 
                         if not np.isfinite(mean_aspect):
-                            warning("bad aspect: ", lon2d[j, i], lat2d[j, i], mean_aspect)
+                            warning(
+                                "bad aspect: ", lon2d[j, i], lat2d[j, i], mean_aspect
+                            )
 
                         hillslope_index[asp_ndx * nhand_bins + n] = asp_ndx + 1
                         column_index[asp_ndx * nhand_bins + n] = col_cnt
@@ -911,12 +911,12 @@ def CalcGeoparamsGridcell(
                         col_cnt += 1
 
                         debug(
-                                "chk h/d/a: ",
-                                n,
-                                hand[asp_ndx * nhand_bins + n],
-                                dtnd[asp_ndx * nhand_bins + n],
-                                area[asp_ndx * nhand_bins + n],
-                            )
+                            "chk h/d/a: ",
+                            n,
+                            hand[asp_ndx * nhand_bins + n],
+                            dtnd[asp_ndx * nhand_bins + n],
+                            area[asp_ndx * nhand_bins + n],
+                        )
 
                 # identify lowland column with first nonzero column index
                 for n in range(nhand_bins):
@@ -1063,12 +1063,12 @@ def CalcGeoparamsGridcell(
                     debug("total column area ", np.sum(area[aind]))
                     debug("lowland width ", width[aind[0]])
                     debug(
-                            asp_ndx + 1,
-                            " approximate number of hillslopes ",
-                            hillslope_fraction[asp_ndx]
-                            * np.sum(farea[np.isfinite(fhand)])
-                            / np.sum(area[aind[0:nvbins]]),
-                        )
+                        asp_ndx + 1,
+                        " approximate number of hillslopes ",
+                        hillslope_fraction[asp_ndx]
+                        * np.sum(farea[np.isfinite(fhand)])
+                        / np.sum(area[aind[0:nvbins]]),
+                    )
                     debug("\n")
 
                     new_num_hillslopes += (
@@ -1084,9 +1084,7 @@ def CalcGeoparamsGridcell(
             # in this model, 4 catchments make up a feature
             debug(
                 "Total area eff rad ",
-                np.sqrt(
-                    4 * np.sum(farea[np.isfinite(fhand)]) / stream_number / np.pi
-                ),
+                np.sqrt(4 * np.sum(farea[np.isfinite(fhand)]) / stream_number / np.pi),
             )
             debug(
                 "area per stream ",

@@ -195,13 +195,17 @@ def set_aspect_to_hillslope_mean_parallel(
         nchunks = int(np.max([1, int(uid.size // chunksize)]))
         chunksize = np.min([chunksize, uid.size - 1])
         for n in range(nchunks):
-            n1, n2 = int(n*chunksize),int((n+1)*chunksize)
-            if n == nchunks-1:
-                n2 = uid.size-1
-            if n1==n2: # single drainage case
+            n1, n2 = int(n * chunksize), int((n + 1) * chunksize)
+            if n == nchunks - 1:
+                n2 = uid.size - 1
+            if n1 == n2:  # single drainage case
                 cind = np.where(drainage_id.flat == uid[n1])[0]
             else:
-                cind = np.where(np.logical_and(drainage_id.flat >= uid[n1],drainage_id.flat < uid[n2]))[0]
+                cind = np.where(
+                    np.logical_and(
+                        drainage_id.flat >= uid[n1], drainage_id.flat < uid[n2]
+                    )
+                )[0]
 
             x = pool1.map(
                 partial(
@@ -237,14 +241,16 @@ def set_aspect_to_hillslope_mean_serial(drainage_id, aspect, hillslope, chunksiz
     nchunks = int(np.max([1, int(uid.size // chunksize)]))
     chunksize = np.min([chunksize, uid.size - 1])
     for n in range(nchunks):
-        n1, n2 = int(n*chunksize),int((n+1)*chunksize)
-        if n == nchunks-1:
-            n2 = uid.size-1
-        if n1==n2: # single drainage case
+        n1, n2 = int(n * chunksize), int((n + 1) * chunksize)
+        if n == nchunks - 1:
+            n2 = uid.size - 1
+        if n1 == n2:  # single drainage case
             cind = np.where(drainage_id.flat == uid[n1])[0]
         else:
-            cind = np.where(np.logical_and(drainage_id.flat >= uid[n1],drainage_id.flat < uid[n2]))[0]
-        
+            cind = np.where(
+                np.logical_and(drainage_id.flat >= uid[n1], drainage_id.flat < uid[n2])
+            )[0]
+
         # search a subset of array in each chunk
         for did in uid[n1 : n2 + 1]:
             dind = cind[np.where(drainage_id.flat[cind] == did)[0]]

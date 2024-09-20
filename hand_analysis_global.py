@@ -126,7 +126,7 @@ chunkLabel = "{number:0{width}d}".format(width=width, number=args.cndx)
 jobname = os.getenv("PBS_JOB")
 if jobname is None:
     jobname = "chunk"
-logfile = os.path.join(os.getcwd(),jobname + f"_{chunkLabel}.log2")
+logfile = os.path.join(os.getcwd(), jobname + f"_{chunkLabel}.log2")
 config_logger(logfile)
 
 doTimer = args.timer
@@ -216,7 +216,9 @@ for mask_var_option in mask_var_options:
     if mask_var_option in f.variables.keys():
         mask_var = mask_var_option
 if mask_var is None:
-    raise KeyError(f"No variable found in sfcfile that looks like a mask ({mask_var_options})")
+    raise KeyError(
+        f"No variable found in sfcfile that looks like a mask ({mask_var_options})"
+    )
 landmask = np.asarray(
     f.variables[mask_var][
         :,
