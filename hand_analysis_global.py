@@ -186,7 +186,9 @@ outfile_template = os.path.join(
 if args.dem_source == "MERIT":
     efile0 = os.path.join(args.dem_data_path, "elv_DirTag", "TileTag_elv.tif")
     outfile_template = outfile_template.replace(".nc", "_MERIT.nc")
-    info("\ndem template files: ", efile0, "\n")
+    info("\n")
+    info("dem template files: ", efile0)
+    info("\n")
 else:
     raise ValueError(f"Invalid setting for --dem-source: {args.dem_source}")
 
@@ -311,7 +313,8 @@ for j in range(jstart, jend):
             ji_pairs.append([j, i])
 
 n_points = len(ji_pairs)
-info("number of points ", n_points, "\n")
+info("number of points ", n_points)
+info("\n")
 
 # randomize point list to avoid multiple processes working on same point
 randomizePointList = False
@@ -349,4 +352,5 @@ for index, k in enumerate(ji_pairs):
 
 if doTimer:
     etime = time.time()
-    info("\nTime to complete script: {:.3f} seconds".format(etime - stime))
+    info("\n")
+    info("Time to complete script: {:.3f} seconds".format(etime - stime))

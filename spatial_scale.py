@@ -176,8 +176,10 @@ def _fit_peak_lognormal(x, y):
         mu = np.log(center)
 
         # One peak
-        debug("\ninitial peak ", center)
-        debug("\ninitial amp,sigma,mu ", amp, sigma, mu)
+        debug("\n")
+        debug("initial peak ", center)
+        debug("\n")
+        debug("initial amp,sigma,mu ", amp, sigma, mu)
         try:
             p0_1lognorm = [amp, sigma, mu]
             popt_1lognorm, pcov_1lognorm = optimize.curve_fit(
@@ -311,7 +313,8 @@ def _fit_peak_gaussian(x, y):
         sigma = gsigma
 
         # One peak
-        debug("\ninitial amp,center,sigma ", amp, center, sigma)
+        debug("\n")
+        debug("initial amp,center,sigma ", amp, center, sigma)
         try:
             p0_1gauss = [amp, center, sigma]
             popt_1gauss, pcov_1gauss = optimize.curve_fit(
@@ -374,7 +377,8 @@ def _LocatePeak(
 
     # Fit different models to variance ratio
     # and compare goodness of fit
-    debug("\nBeginning curve fitting")
+    debug("\n")
+    debug("Beginning curve fitting")
     debug("min max lambda ", minWavelength, maxWavelength)
     debug("lambdamin lambdalmax ", lambda_1d[lmin], lambda_1d[lmax])
     debug("lmin lmax ", lmin, lmax)
@@ -431,11 +435,14 @@ def _LocatePeak(
     debug("tscore ", tscore)
 
     if psharp_ga == 0:
-        debug("\npeak sharpness is zero; gaussian fit failed")
+        debug("\n")
+        debug("peak sharpness is zero; gaussian fit failed")
     elif psharp_ln == 0:
-        debug("\npeak sharpness is zero; lognormal fit failed")
+        debug("\n")
+        debug("peak sharpness is zero; lognormal fit failed")
     else:
-        debug("\npeak sharpness ", psharp_ga, psharp_ln)
+        debug("\n")
+        debug("peak sharpness ", psharp_ga, psharp_ln)
 
     # Select best model
     psharp_threshold = 1.5
@@ -448,14 +455,16 @@ def _LocatePeak(
             spatialScale = np.min([10 ** pgauss[1], maxWavelength])
             spatialScale = np.max([spatialScale, minWavelength])
             selection = 1
-            debug("\ngaussian selected")
+            debug("\n")
+            debug("gaussian selected")
         else:
             model = "lognormal"
             ln_peak = np.exp(plognorm[2])
             spatialScale = np.min([10**ln_peak, maxWavelength])
             spatialScale = np.max([spatialScale, minWavelength])
             selection = 2
-            debug("\nlognormal selected")
+            debug("\n")
+            debug("lognormal selected")
     else:
         # linear trend
         if tscore > tscore_threshold:
@@ -466,18 +475,21 @@ def _LocatePeak(
             else:
                 spatialScale = minWavelength
                 selection = 4
-            debug("\nlinear selected ", selection)
+            debug("\n")
+            debug("linear selected ", selection)
         # if linear trend is not significant, select flat distribution
         else:
             model = "flat"
             spatialScale = minWavelength
             selection = 5
-            debug("\nflat selected")
+            debug("\n")
+            debug("flat selected")
 
     if model == "None":
         raise RuntimeError("No model selected")
 
-    debug("\nEnd curve fitting")
+    debug("\n")
+    debug("End curve fitting")
 
     # set coefficients for output
     if model == "gaussian":
@@ -543,7 +555,8 @@ def IdentifySpatialScaleLaplacian(
     lmask = np.where(elev > min_land_elevation, 1, 0)
     land_frac = np.sum(lmask) / lmask.size
     debug("approximate resolution in m: ", ares)
-    debug("max wavelength for hillslope, jm, im: ", maxWavelength, ejm, eim, "\n")
+    debug("max wavelength for hillslope, jm, im: ", maxWavelength, ejm, eim)
+    debug("\n")
     debug("land fraction ", land_frac)
 
     min_land_fraction = 0.01
@@ -615,7 +628,8 @@ def IdentifySpatialScaleLaplacian(
         win = 4
         elev = blend_edges(elev, n=win)
 
-        debug("Planar surface removed from elevation\n")
+        debug("Planar surface removed from elevation")
+        debug("\n")
 
     # Calculate 2D DFTs (output is complex array)
     # first dft is real, giving complex result w/ N/2 coefs
@@ -631,7 +645,8 @@ def IdentifySpatialScaleLaplacian(
     laplac_fft = np.fft.rfft2(laplac, norm="ortho")
     laplac_amp_fft = np.abs(laplac_fft)
 
-    debug("DFTs calculated\n")
+    debug("DFTs calculated")
+    debug("\n")
 
     # use appropriate (real/complex) routine for frequencies
     rowfreq = np.fft.fftfreq(ejm)
@@ -665,8 +680,9 @@ def IdentifySpatialScaleLaplacian(
     minWavelength = np.min(lambda_1d)
     spatialScale = np.max([spatialScale, minWavelength])
 
+    debug("\n")
     debug(
-            "\nmodel, spatial scale, selection method: ", model, spatialScale, selection
+            "model, spatial scale, selection method: ", model, spatialScale, selection
         )
 
     return {

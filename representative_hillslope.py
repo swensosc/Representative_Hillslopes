@@ -216,7 +216,8 @@ def CalcRepresentativeHillslopeForm(
             ck = dtnd[n] ** 2
             coefs = [ak, bk, ck]
             hill_radius = quadratic(coefs, root=0)
-            debug("\nufrac ", n, np.sum(column_fraction), ufrac)
+            debug("\n")
+            debug("ufrac ", n, np.sum(column_fraction), ufrac)
             debug("dmed ", dtnd[n])
             debug("hill_radius ", n, hill_radius)
             nrad.append(hill_radius)
@@ -274,11 +275,13 @@ def CalcRepresentativeHillslopeForm(
             ck = dtnd[n] ** 2
             coefs = [ak, bk, ck]
             hill_length = quadratic(coefs, root=0)
-            debug("\nufrac ", n, np.sum(column_fraction), ufrac)
+            debug("\n")
+            debug("ufrac ", n, np.sum(column_fraction), ufrac)
             debug("dmed ", dtnd[n])
             debug("hill_length ", n, hill_length)
             nlength.append(hill_length)
-        debug("\nhill lengths ", nlength)
+        debug("\n")
+        debug("hill lengths ", nlength)
 
         # weighted average of hillslope lengths
         mean_hill_length = np.sum(nlength * column_fraction)
@@ -312,7 +315,8 @@ def CalcRepresentativeHillslopeForm(
                 debug("mean_hill_length, ledge, dmed")
             debug(mean_hill_length, ledge, dmed)
 
-        debug("base width {}\n".format(nwidth[0]))
+        debug("base width {}".format(nwidth[0]))
+        debug("\n")
         debug("new distances ", ndmed)
         debug("new widths ", nwidth)
 
@@ -351,7 +355,8 @@ def CalcGeoparamsGridcell(
     stime = time.time()
     j, i = ji
     debug("j i ", j, i)
-    debug(lon2d[j, i], lat2d[j, i], "\n")
+    debug(lon2d[j, i], lat2d[j, i])
+    debug("\n")
 
     outfile = outfile_template.replace(".nc", "_j_{:03d}_i_{:03d}.nc".format(j, i))
     debug(outfile)
@@ -435,7 +440,8 @@ def CalcGeoparamsGridcell(
 
         # Set accumulation threshold from spatial scale
         accum_thresh = 0.5 * (spatialScale**2)
-        debug("\nSpatial scale, accum_thresh")
+        debug("\n")
+        debug("Spatial scale, accum_thresh")
         debug(spatialScale, accum_thresh)
 
         # Set size of region used in catchment decomposition
@@ -497,7 +503,9 @@ def CalcGeoparamsGridcell(
 
         nvalid_subregions = 0
         for nsub in range(len(corner_list)):
-            debug("\nsubregion ", nsub + 1, " of ", len(corner_list), "\n")
+            debug("\n")
+            debug("subregion ", nsub + 1, " of ", len(corner_list))
+            debug("\n")
 
             # Calculate landscape characteristics from dem
             lc = LandscapeCharacteristics()
@@ -579,7 +587,8 @@ def CalcGeoparamsGridcell(
                     continue
 
                 debug("Basins identified")
-                debug("time: ", time.time() - stimefb, "\n")
+                debug("time: ", time.time() - stimefb)
+                debug("\n")
 
             # add current array to previous data
             fhand_all.extend(fhand.tolist())
@@ -686,7 +695,8 @@ def CalcGeoparamsGridcell(
         fdtnd[fdtnd < smallest_dtnd] = smallest_dtnd
 
         debug("max value in fhand ", np.max(fhand))
-        debug("max value in fdtnd ", np.max(fdtnd), "\n")
+        debug("max value in fdtnd ", np.max(fdtnd))
+        debug("\n")
 
         # average channel slope
         mean_network_slope = mean_network_slope / nvalid_subregions
@@ -921,7 +931,8 @@ def CalcGeoparamsGridcell(
                         break
 
             if printData:
-                info("\n---------  final values aspect", asp_ndx + 1, "----------")
+                info("\n")
+                info("---------  final values aspect", asp_ndx + 1, "----------")
                 info("area_all_columns ", np.sum(area[: ind.size]), np.sum(area[:]))
                 info(
                     "height ",
@@ -951,7 +962,8 @@ def CalcGeoparamsGridcell(
         # --  Compress data  ----------------------
         ind = np.where(column_index[:] > 0)[0]
         if printData:
-            info("\ncompressing data")
+            info("\n")
+            info("compressing data")
             info("hand ", hand[ind])
             info("dtnd ", dtnd[ind])
             info("slope ", slope[ind])
@@ -997,7 +1009,8 @@ def CalcGeoparamsGridcell(
             nactual_hillslopes = np.unique(h_ndx[h_ndx > 0]).size
             min_number_of_hillslopes = 3
             if nactual_hillslopes < min_number_of_hillslopes:
-                info("\nremoving hillslope parameters")
+                info("\n")
+                info("removing hillslope parameters")
                 debug("number of hillslopes ", nactual_hillslopes)
                 debug(lon2d[j, i], lat2d[j, i])
                 nhillcolumns = 0
@@ -1055,8 +1068,8 @@ def CalcGeoparamsGridcell(
                             hillslope_fraction[asp_ndx]
                             * np.sum(farea[np.isfinite(fhand)])
                             / np.sum(area[aind[0:nvbins]]),
-                            "\n",
                         )
+                    debug("\n")
 
                     new_num_hillslopes += (
                         hillslope_fraction[asp_ndx]
@@ -1088,8 +1101,10 @@ def CalcGeoparamsGridcell(
         wdepth = adepth * (uharea**bdepth)
         wwidth = awidth * (uharea**bwidth)
         wslope = mean_network_slope
-        debug("\nstream channel: width, depth, slope")
-        debug(wwidth, wdepth, wslope, "\n")
+        debug("\n")
+        debug("stream channel: width, depth, slope")
+        debug(wwidth, wdepth, wslope)
+        debug("\n")
 
         # Write data to file
         if not printData:
@@ -1679,7 +1694,8 @@ class LandscapeCharacteristics(object):
         self.reach_lon = x["mlon"]
         self.reach_lat = x["mlat"]
 
-        debug("\nnetwork length ", self.network_length)
+        debug("\n")
+        debug("network length ", self.network_length)
 
         # add stream channel mask and initial stream channel id to grid object
         if useConsistentChannelMask:
@@ -1774,8 +1790,9 @@ class LandscapeCharacteristics(object):
                 self.drainage_id, self.aspect, self.hillslope, npools=npools
             )
             etime = time.time()
+            debug("\n")
             debug(
-                "\nTime to complete set_aspect_to_hillslope_mean_parallel: {:.3f} seconds".format(
+                "Time to complete set_aspect_to_hillslope_mean_parallel: {:.3f} seconds".format(
                     etime - stime
                 )
             )
@@ -1787,8 +1804,9 @@ class LandscapeCharacteristics(object):
                 self.drainage_id, self.aspect, self.hillslope
             )
             etime = time.time()
+            debug("\n")
             debug(
-                "\nTime to complete set_aspect_to_hillslope_mean_serial: {:.3f} seconds".format(
+                "Time to complete set_aspect_to_hillslope_mean_serial: {:.3f} seconds".format(
                     etime - stime
                 )
             )
