@@ -9,6 +9,7 @@ import netCDF4 as netcdf4
 from numpy.random import default_rng
 
 from representative_hillslope import CalcGeoparamsGridcell
+from rh_logging import config_logger, set_logger_level, info, warning, error, debug
 
 # Create representative hillslope geomorphic parameters
 parser = argparse.ArgumentParser(description="Geomorphic parameter analysis")
@@ -110,13 +111,23 @@ if not os.path.exists(args.output_dir):
 
 # Check and process chunk settings
 totalChunks = args.nchunks * args.nchunks
+info("totalChunks", totalChunks)
 if args.cndx < 0 or args.cndx > totalChunks:
     raise RuntimeError("args.cndx must be 1-{:d}".format(totalChunks))
 if args.cndx == 0 and args.pt < 1:
     raise RuntimeError("args.cndx = 0; select a pt with --pt")
 
-print("Chunk ", args.cndx)
-chunkLabel = "{:02d}".format(args.cndx)
+# Set up logging
+width = int(np.ceil(np.log10(totalChunks)))
+if totalChunks == 10**width:
+    # Exactly a power of 10? Increase width by 1.
+    width += 1
+chunkLabel = "{number:0{width}d}".format(width=width, number=args.cndx)
+jobname = os.getenv("PBS_JOB")
+if jobname is None:
+    jobname = "chunk"
+logfile = os.path.join(os.getcwd(),jobname + f"_{chunkLabel}.log2")
+config_logger(logfile)
 
 doTimer = args.timer
 
@@ -175,11 +186,11 @@ outfile_template = os.path.join(
 if args.dem_source == "MERIT":
     efile0 = os.path.join(args.dem_data_path, "elv_DirTag", "TileTag_elv.tif")
     outfile_template = outfile_template.replace(".nc", "_MERIT.nc")
-    print("\ndem template files: ", efile0, "\n")
+    info("\ndem template files: ", efile0, "\n")
 else:
     raise ValueError(f"Invalid setting for --dem-source: {args.dem_source}")
 
-print(f"Output filename template: {outfile_template}")
+info(f"Output filename template: {outfile_template}")
 
 f = netcdf4.Dataset(args.sfcfile, "r")
 slon2d = np.asarray(
@@ -226,7 +237,7 @@ dlat = np.abs(slat[0] - slat[1])
 # limit maximum hillslope length to fraction of grid spacing
 hsf = 0.25
 maxHillslopeLength = np.min([maxHillslopeLength, hsf * re * dtr * dlat])
-print("max hillslope length ", maxHillslopeLength)
+info("max hillslope length ", maxHillslopeLength)
 
 # initialize new fields to be added to surface data file
 hand = np.zeros((ncolumns_per_gridcell, sjm, sim))
@@ -266,16 +277,14 @@ if checkSinglePoint:
     kstart = np.argmin(np.abs(slon2d - plon) + np.abs(slat2d - plat))
     jstart, istart = np.unravel_index(kstart, slon2d.shape)
     plon, plat = slon[istart], slat[jstart]
-    print("jstart,istart ", jstart, istart)
-    print(slon[istart], slat[jstart])
+    info("jstart,istart ", jstart, istart)
+    info(slon[istart], slat[jstart])
 
     iend = istart + 1
     jend = jstart + 1
-    verbose = True
 else:
     istart, iend = 0, sim
     jstart, jend = 0, sjm
-    verbose = args.debug
 
     nichunk = int(sim // args.nchunks)
     njchunk = int(sjm // args.nchunks)
@@ -286,11 +295,13 @@ else:
 
     # adjust for remainder
     if (sim - iend) < nichunk:
-        # print('adjusting i ',iend,sim,nichunk)
+        # info('adjusting i ',iend,sim,nichunk)
         iend = sim
     if (sjm - jend) < njchunk:
-        # print('adjusting j ',jend,sjm,njchunk)
+        # info('adjusting j ',jend,sjm,njchunk)
         jend = sjm
+
+set_logger_level(checkSinglePoint, args.debug, printFlush)
 
 # Loop over points in domain
 ji_pairs = []
@@ -300,7 +311,7 @@ for j in range(jstart, jend):
             ji_pairs.append([j, i])
 
 n_points = len(ji_pairs)
-print("number of points ", n_points, "\n")
+info("number of points ", n_points, "\n")
 
 # randomize point list to avoid multiple processes working on same point
 randomizePointList = False
@@ -314,7 +325,7 @@ if randomizePointList:
 # loop over point list
 for index, k in enumerate(ji_pairs):
     j, i = k
-    print(f"Beginning gridcell {j} {i} ({index+1}/{n_points})", flush=printFlush)
+    info(f"Beginning gridcell {j} {i} ({index+1}/{n_points})")
     CalcGeoparamsGridcell(
         [j, i],
         lon2d=slon2d,
@@ -333,10 +344,9 @@ for index, k in enumerate(ji_pairs):
         outfile_template=outfile_template,
         overwrite=args.overwrite,
         printData=checkSinglePoint,
-        verbose=verbose,
         useMultiProcessing=args.useMultiProcessing,
     )
 
 if doTimer:
     etime = time.time()
-    print("\nTime to complete script: {:.3f} seconds".format(etime - stime))
+    info("\nTime to complete script: {:.3f} seconds".format(etime - stime))

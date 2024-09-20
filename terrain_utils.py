@@ -2,6 +2,7 @@ import numpy as np
 from scipy.stats import expon
 from multiprocessing import Pool
 from functools import partial
+from rh_logging import info, warning, error, debug
 
 """
 calc_network_length:                   calculate length of stream network
@@ -34,7 +35,6 @@ def calc_network_length(
     lon,
     lat,
     latdir="south_to_north",
-    verbose=False,
 ):
     dirmap = (64, 128, 1, 2, 4, 8, 16, 32)
     dir_to_index_dict = {dirmap[n]: n for n in range(len(dirmap))}
@@ -134,13 +134,12 @@ def calc_network_length(
     w = reach_length[reach_length > 0]
     mean_reach_slope = np.sum(w * reach_slopes) / np.sum(w)
 
-    if verbose:
-        print(
-            "mean reach length and elevation difference ",
-            np.mean(reach_length[reach_length > 0]),
-            np.mean(reach_elevation_difference[reach_length > 0]),
-        )
-        print("mean reach slope ", mean_reach_slope)
+    debug(
+        "mean reach length and elevation difference ",
+        np.mean(reach_length[reach_length > 0]),
+        np.mean(reach_elevation_difference[reach_length > 0]),
+    )
+    debug("mean reach slope ", mean_reach_slope)
 
     return {"length": total_reach_length, "slope": mean_reach_slope}
 
@@ -376,7 +375,7 @@ def SpecifyHandBounds(fhand, faspect, aspect_bins, bin1_max=2, BinMethod="fastso
                     bmin = bin1_max
 
                 if bmin > bin1_max:
-                    print(
+                    warning(
                         "Too few hand values < "
                         + str(bin1_max)
                         + "; setting lowest bin to "
@@ -387,8 +386,8 @@ def SpecifyHandBounds(fhand, faspect, aspect_bins, bin1_max=2, BinMethod="fastso
             tmp = hand_sorted[hand_sorted > bin1_max]
 
             if int(0.33 * tmp.size - 1) == -1:
-                print("bad tmp ")
-                print(tmp.size, bin1_max, hand_asp_sorted.size)
+                warning("bad tmp ")
+                warning(tmp.size, bin1_max, hand_asp_sorted.size)
 
             b33 = tmp[int(0.33 * tmp.size - 1)]
             b66 = tmp[int(0.66 * tmp.size - 1)]

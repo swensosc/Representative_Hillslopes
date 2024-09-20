@@ -1,4 +1,5 @@
 import numpy as np
+from rh_logging import info, warning, error, debug
 
 """
 routines for modifying geospatial data
@@ -152,7 +153,7 @@ def std_dev(x):
     return np.power(np.mean(np.power((x - np.mean(x)), 2)), 0.5)
 
 
-def quadratic(coefs, root=0, eps=1e-6, verbose=False):
+def quadratic(coefs, root=0, eps=1e-6):
     ak, bk, ck = coefs
     if (bk**2 - 4 * ak * ck) < 0:
         # if negative due to roundoff, adjust a coefficient get zero
@@ -170,8 +171,7 @@ def quadratic(coefs, root=0, eps=1e-6, verbose=False):
         (-bk + np.sqrt(bk**2 - 4 * ak * ck)) / (2 * ak),
         (-bk - np.sqrt(bk**2 - 4 * ak * ck)) / (2 * ak),
     ]
-    if verbose:
-        print("quadratic roots ", dm_roots)
+    debug("quadratic roots ", dm_roots)
     return dm_roots[root]
 
 

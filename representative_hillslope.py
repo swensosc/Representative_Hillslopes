@@ -21,6 +21,7 @@ from terrain_utils import (
     set_aspect_to_hillslope_mean_serial,
     set_aspect_to_hillslope_mean_parallel,
 )
+from rh_logging import info, warning, error, debug
 
 sys.path.append("pysheds")
 from pysheds.pgrid import Grid
@@ -176,7 +177,6 @@ def CalcRepresentativeHillslopeForm(
     form="CircularSection",
     number_of_hillslopes=0,
     maxHillslopeLength=0,
-    verbose=False,
 ):
     """
     calculate new distances and widths based on
@@ -194,16 +194,14 @@ def CalcRepresentativeHillslopeForm(
     # number of valid bins
     nvbins = np.sum(np.where(column_index > 0, 1, 0))
 
-    if verbose:
-        print("hillslope fraction ", hillslope_fraction)
-        print("alpha ", alpha / dtr, " degrees")
-        print("number of valid bins ", nvbins)
+    debug("hillslope fraction ", hillslope_fraction)
+    debug("alpha ", alpha / dtr, " degrees")
+    debug("number of valid bins ", nvbins)
 
     column_fraction = np.zeros(nvbins)
     for n in range(nvbins):
         column_fraction[n] = area[n] / np.sum(area)
-        if verbose:
-            print("column fraction ", n, column_fraction[n])
+        debug("column fraction ", n, column_fraction[n])
 
     # Hillslope assumed to occupy a section of a circle
     if form == "CircularSection":
@@ -217,11 +215,10 @@ def CalcRepresentativeHillslopeForm(
             bk = -2 * dtnd[n]
             ck = dtnd[n] ** 2
             coefs = [ak, bk, ck]
-            hill_radius = quadratic(coefs, root=0)  # ,verbose=True)
-            if verbose:
-                print("\nufrac ", n, np.sum(column_fraction), ufrac)
-                print("dmed ", dtnd[n])
-                print("hill_radius ", n, hill_radius)
+            hill_radius = quadratic(coefs, root=0)
+            debug("\nufrac ", n, np.sum(column_fraction), ufrac)
+            debug("dmed ", dtnd[n])
+            debug("hill_radius ", n, hill_radius)
             nrad.append(hill_radius)
 
         # weighted average of radii estimates
@@ -237,10 +234,9 @@ def CalcRepresentativeHillslopeForm(
         for n in range(nvbins):
             narea.append(column_fraction[n] * harea)
 
-        if verbose:
-            print("hill radii ", nrad)
-            print("mean radius ", mean_hill_radius)
-            print("hill area ", harea)
+        debug("hill radii ", nrad)
+        debug("mean radius ", mean_hill_radius)
+        debug("hill area ", harea)
 
         # calculate width and median distance to channel
         nwidth = []
@@ -278,13 +274,11 @@ def CalcRepresentativeHillslopeForm(
             ck = dtnd[n] ** 2
             coefs = [ak, bk, ck]
             hill_length = quadratic(coefs, root=0)
-            if verbose:
-                print("\nufrac ", n, np.sum(column_fraction), ufrac)
-                print("dmed ", dtnd[n])
-                print("hill_length ", n, hill_length)
+            debug("\nufrac ", n, np.sum(column_fraction), ufrac)
+            debug("dmed ", dtnd[n])
+            debug("hill_length ", n, hill_length)
             nlength.append(hill_length)
-        if verbose:
-            print("\nhill lengths ", nlength)
+        debug("\nhill lengths ", nlength)
 
         # weighted average of hillslope lengths
         mean_hill_length = np.sum(nlength * column_fraction)
@@ -295,9 +289,8 @@ def CalcRepresentativeHillslopeForm(
         # total hillslope area
         harea = mean_hill_length**2 * np.tan(alpha / 2)
 
-        if verbose:
-            print("mean hillslope length ", mean_hill_length)
-            print("hillslope total area ", harea)
+        debug("mean hillslope length ", mean_hill_length)
+        debug("hillslope total area ", harea)
 
         # calculate estimates of hill column areas
         narea = []
@@ -315,15 +308,13 @@ def CalcRepresentativeHillslopeForm(
             uarea -= narea[n] / 2
             dmed = mean_hill_length - np.sqrt(uarea / np.tan(alpha / 2))
             ndmed.append(dmed)
-            if verbose:
-                if n == 0:
-                    print("mean_hill_length, ledge, dmed")
-                print(mean_hill_length, ledge, dmed)
+            if n == 0:
+                debug("mean_hill_length, ledge, dmed")
+            debug(mean_hill_length, ledge, dmed)
 
-        if verbose:
-            print("base width {}\n".format(nwidth[0]))
-            print("new distances ", ndmed)
-            print("new widths ", nwidth)
+        debug("base width {}\n".format(nwidth[0]))
+        debug("new distances ", ndmed)
+        debug("new widths ", nwidth)
 
         return {
             "n_valid_bins": nvbins,
@@ -354,31 +345,25 @@ def CalcGeoparamsGridcell(
     addStreamChannelVariables=True,
     hillslope_form=None,
     printData=False,
-    verbose=False,
-    printFlush=True,
     useMultiProcessing=False,
 ):
 
     stime = time.time()
     j, i = ji
-    if verbose:
-        print("j i ", j, i)
-        print(lon2d[j, i], lat2d[j, i], "\n")
+    debug("j i ", j, i)
+    debug(lon2d[j, i], lat2d[j, i], "\n")
 
     outfile = outfile_template.replace(".nc", "_j_{:03d}_i_{:03d}.nc".format(j, i))
-    if verbose:
-        print(outfile)
+    debug(outfile)
 
     command = ["ls", outfile]
     file_exists = subprocess.run(command, capture_output=True).returncode
 
     if file_exists == 0 and not printData:
         if overwrite:
-            if verbose:
-                print(outfile, " exists; overwriting", flush=printFlush)
+            debug(outfile, " exists; overwriting")
         else:
-            if verbose:
-                print(outfile, " exists; skipping", flush=printFlush)
+            debug(outfile, " exists; skipping")
             return
 
     # initialize new fields to be added to surface data file
@@ -435,12 +420,10 @@ def CalcGeoparamsGridcell(
             detrendElevation=detrendElevation,
             nlambda=nlambda,
             dem_source=dem_source,
-            verbose=verbose,
         )
 
         if not x["validDEM"]:
-            if verbose:
-                print("invalid dem ", j, i)
+            debug("invalid dem ", j, i)
             return [-1]
 
         spatialScale = x["spatialScale"]
@@ -452,9 +435,8 @@ def CalcGeoparamsGridcell(
 
         # Set accumulation threshold from spatial scale
         accum_thresh = 0.5 * (spatialScale**2)
-        if verbose:
-            print("\nSpatial scale, accum_thresh")
-            print(spatialScale, accum_thresh)
+        debug("\nSpatial scale, accum_thresh")
+        debug(spatialScale, accum_thresh)
 
         # Set size of region used in catchment decomposition
         # us a larger region to resolve catchments that extend outside gridcell
@@ -467,12 +449,11 @@ def CalcGeoparamsGridcell(
         if gsf < 0.5:
             sf = sf * (gsf / 0.5)
 
-        if verbose:
-            print(
-                "spatial scale in meters, grid spacing ", scale_in_meters, grid_spacing
-            )
-            print("accum_thresh, grid scalar ", accum_thresh, sf)
-            print("ratio grid size to spatial scale ", gs_ratio)
+        debug(
+            "spatial scale in meters, grid spacing ", scale_in_meters, grid_spacing
+        )
+        debug("accum_thresh, grid scalar ", accum_thresh, sf)
+        debug("ratio grid size to spatial scale ", gs_ratio)
 
         # Read in dem data for catchment decomposition
         dlonh = sf * dlon
@@ -516,8 +497,7 @@ def CalcGeoparamsGridcell(
 
         nvalid_subregions = 0
         for nsub in range(len(corner_list)):
-            if verbose:
-                print("\nsubregion ", nsub + 1, " of ", len(corner_list), "\n")
+            debug("\nsubregion ", nsub + 1, " of ", len(corner_list), "\n")
 
             # Calculate landscape characteristics from dem
             lc = LandscapeCharacteristics()
@@ -528,13 +508,11 @@ def CalcGeoparamsGridcell(
                 useMultiProcessing=useMultiProcessing,
                 dem_source=dem_source,
                 maskFlooded=False,
-                verbose=verbose,
             )
 
             # if no valid data, skip to next subregion
             if x == -1:
-                if verbose:
-                    print("no dem data ", lon2d[j, i], lat2d[j, i])
+                debug("no dem data ", lon2d[j, i], lat2d[j, i])
                 continue
 
             # length will be summed, slope will be averaged
@@ -596,14 +574,12 @@ def CalcGeoparamsGridcell(
                         dtnd2d[basin_mask > 0] = 0
                 else:
                     # if entire grid cell is a basin, skip
-                    if verbose:
-                        print("subregion is too flat; skipping")
-                        print("non-flat fraction ", non_flat_fraction)
+                    debug("subregion is too flat; skipping")
+                    debug("non-flat fraction ", non_flat_fraction)
                     continue
 
-                if verbose:
-                    print("Basins identified")
-                    print("time: ", time.time() - stimefb, "\n")
+                debug("Basins identified")
+                debug("time: ", time.time() - stimefb, "\n")
 
             # add current array to previous data
             fhand_all.extend(fhand.tolist())
@@ -629,8 +605,7 @@ def CalcGeoparamsGridcell(
 
         # if no valid data, skip to next gridcell
         if nvalid_subregions == 0:
-            if verbose:
-                print("no subregions with valid dem data ", lon2d[j, i], lat2d[j, i])
+            debug("no subregions with valid dem data ", lon2d[j, i], lat2d[j, i])
             return [-1]
 
         # check for gridcells w/ no valid hand data
@@ -647,12 +622,10 @@ def CalcGeoparamsGridcell(
         hand_insufficient_data = hand_coverage_fraction < 0.01
 
         if np.logical_or(hand_all_nans_check, hand_all_zeros_check):
-            if verbose:
-                print(lon2d[j, i], lat2d[j, i], "hand all nans or zeros, skipping...")
+            debug(lon2d[j, i], lat2d[j, i], "hand all nans or zeros, skipping...")
             return [-1]
         elif hand_insufficient_data:
-            if verbose:
-                print(
+            debug(
                     "fraction of region hand > 0 {:10.6f}, skipping...".format(
                         hand_coverage_fraction
                     )
@@ -712,9 +685,8 @@ def CalcGeoparamsGridcell(
         smallest_dtnd = 1.0  # [meters]
         fdtnd[fdtnd < smallest_dtnd] = smallest_dtnd
 
-        if verbose:
-            print("max value in fhand ", np.max(fhand))
-            print("max value in fdtnd ", np.max(fdtnd), "\n")
+        debug("max value in fhand ", np.max(fhand))
+        debug("max value in fdtnd ", np.max(fdtnd), "\n")
 
         # average channel slope
         mean_network_slope = mean_network_slope / nvalid_subregions
@@ -722,16 +694,15 @@ def CalcGeoparamsGridcell(
         # mean stream length
         mean_stream_length = mean_stream_length / stream_number
 
-        if verbose:
-            print("mean stream length ", mean_stream_length)
-            print("stream density ", stream_number * mean_stream_length / np.sum(farea))
-            carea = np.asarray([np.sum(farea[fdid == i]) for i in np.unique(fdid)])
-            print(
-                "mean catchment area ",
-                np.mean(carea),
-                np.sum(farea[np.isfinite(fhand)]) / stream_number,
-            )
-            print("accum_thresh in m2 ", accum_thresh * ares * ares)
+        debug("mean stream length ", mean_stream_length)
+        debug("stream density ", stream_number * mean_stream_length / np.sum(farea))
+        carea = np.asarray([np.sum(farea[fdid == i]) for i in np.unique(fdid)])
+        debug(
+            "mean catchment area ",
+            np.mean(carea),
+            np.sum(farea[np.isfinite(fhand)]) / stream_number,
+        )
+        debug("accum_thresh in m2 ", accum_thresh * ares * ares)
 
         # Determine hand bins such that approximately
         # equal areas are obtained, subject to a constraint on
@@ -740,15 +711,13 @@ def CalcGeoparamsGridcell(
             fhand, faspect, aspect_bins, bin1_max=2, BinMethod="fastsort"
         )
 
-        if verbose:
-            print("hand bin bounds ", hand_bin_bounds)
+        debug("hand bin bounds ", hand_bin_bounds)
 
         # for each aspect, calculate hillslope elements
         hillslope_fraction = np.zeros((naspect))
         number_of_hillslopes = np.zeros((naspect))
         for asp_ndx in range(naspect):
-            if verbose:
-                print(
+            debug(
                     "----  Beginning aspect ",
                     asp_ndx + 1,
                     " of ",
@@ -773,8 +742,7 @@ def CalcGeoparamsGridcell(
             if aind.size > 0:
                 hillslope_fraction[asp_ndx] = np.sum(farea[aind]) / np.sum(farea)
                 number_of_hillslopes[asp_ndx] = np.unique(fdid[aind]).size
-                if verbose:
-                    print("hillslope fraction ", asp_ndx, hillslope_fraction)
+                debug("hillslope fraction ", asp_ndx, hillslope_fraction)
 
                 # use linear width hillslope models
                 if hillslope_form == "Trapezoidal":
@@ -832,7 +800,7 @@ def CalcGeoparamsGridcell(
                     if cind.size > 0:
                         cind = aind[cind]
                         if np.mean(fhand[cind]) <= 0:
-                            print(n, " all hand data are zero ")
+                            info(n, " all hand data are zero ")
                             continue
 
                         hand[asp_ndx * nhand_bins + n] = np.mean(fhand[cind])
@@ -918,7 +886,7 @@ def CalcGeoparamsGridcell(
                         aspect[asp_ndx * nhand_bins + n] = mean_aspect
 
                         if not np.isfinite(mean_aspect):
-                            print("bad aspect: ", lon2d[j, i], lat2d[j, i], mean_aspect)
+                            warning("bad aspect: ", lon2d[j, i], lat2d[j, i], mean_aspect)
 
                         hillslope_index[asp_ndx * nhand_bins + n] = asp_ndx + 1
                         column_index[asp_ndx * nhand_bins + n] = col_cnt
@@ -932,8 +900,7 @@ def CalcGeoparamsGridcell(
                             )
                         col_cnt += 1
 
-                        if verbose:
-                            print(
+                        debug(
                                 "chk h/d/a: ",
                                 n,
                                 hand[asp_ndx * nhand_bins + n],
@@ -954,42 +921,42 @@ def CalcGeoparamsGridcell(
                         break
 
             if printData:
-                print("\n---------  final values aspect", asp_ndx + 1, "----------")
-                print("area_all_columns ", np.sum(area[: ind.size]), np.sum(area[:]))
-                print(
+                info("\n---------  final values aspect", asp_ndx + 1, "----------")
+                info("area_all_columns ", np.sum(area[: ind.size]), np.sum(area[:]))
+                info(
                     "height ",
                     hand[asp_ndx * nhand_bins : asp_ndx * nhand_bins + nhand_bins],
                 )
-                print(
+                info(
                     "width ",
                     width[asp_ndx * nhand_bins : asp_ndx * nhand_bins + nhand_bins],
                 )
-                print(
+                info(
                     "distance ",
                     dtnd[asp_ndx * nhand_bins : asp_ndx * nhand_bins + nhand_bins],
                 )
-                print(
+                info(
                     "area ",
                     area[asp_ndx * nhand_bins : asp_ndx * nhand_bins + nhand_bins],
                 )
-                print(
+                info(
                     "colndx ",
                     column_index[
                         asp_ndx * nhand_bins : asp_ndx * nhand_bins + nhand_bins
                     ],
                 )
-                print("max distance ", dtnd[asp_ndx * nhand_bins + nhand_bins - 1])
-                print("")
+                info("max distance ", dtnd[asp_ndx * nhand_bins + nhand_bins - 1])
+                info("")
 
         # --  Compress data  ----------------------
         ind = np.where(column_index[:] > 0)[0]
         if printData:
-            print("\ncompressing data")
-            print("hand ", hand[ind])
-            print("dtnd ", dtnd[ind])
-            print("slope ", slope[ind])
-            print("col_ndx ", column_index[ind])
-            print("dcol_ndx ", downhill_column_index[ind])
+            info("\ncompressing data")
+            info("hand ", hand[ind])
+            info("dtnd ", dtnd[ind])
+            info("slope ", slope[ind])
+            info("col_ndx ", column_index[ind])
+            info("dcol_ndx ", downhill_column_index[ind])
         nhillcolumns = ind.size
         hand[: ind.size] = hand[ind]
         dtnd[: ind.size] = dtnd[ind]
@@ -1030,10 +997,9 @@ def CalcGeoparamsGridcell(
             nactual_hillslopes = np.unique(h_ndx[h_ndx > 0]).size
             min_number_of_hillslopes = 3
             if nactual_hillslopes < min_number_of_hillslopes:
-                print("\nremoving hillslope parameters")
-                if verbose:
-                    print("number of hillslopes ", nactual_hillslopes)
-                    print(lon2d[j, i], lat2d[j, i])
+                info("\nremoving hillslope parameters")
+                debug("number of hillslopes ", nactual_hillslopes)
+                debug(lon2d[j, i], lat2d[j, i])
                 nhillcolumns = 0
                 pct_hillslope[:] = 0
                 hand[:] = 0
@@ -1062,8 +1028,7 @@ def CalcGeoparamsGridcell(
 
             mean_hill_length = np.zeros((naspect))
             for asp_ndx in range(naspect):
-                if verbose:
-                    print("Calculating hillslope distance/width for aspect ", asp_ndx)
+                debug("Calculating hillslope distance/width for aspect ", asp_ndx)
 
                 aind = np.where(hillslope_index[:] == (asp_ndx + 1))[0]
                 if aind.size > 0:
@@ -1075,18 +1040,16 @@ def CalcGeoparamsGridcell(
                         dtnd[aind],
                         form=hillslope_form,
                         maxHillslopeLength=maxHillslopeLength,
-                        verbose=verbose,
                     )
                     nvbins = x["n_valid_bins"]
                     dtnd[aind[0:nvbins]] = x["node_distance"]
                     width[aind[0:nvbins]] = x["edge_width"]
                     area[aind[0:nvbins]] = x["area"]
                     mean_hill_length[asp_ndx] = x["hill_length"]
-                    if verbose:
-                        print("column areas ", area[aind])
-                        print("total column area ", np.sum(area[aind]))
-                        print("lowland width ", width[aind[0]])
-                        print(
+                    debug("column areas ", area[aind])
+                    debug("total column area ", np.sum(area[aind]))
+                    debug("lowland width ", width[aind[0]])
+                    debug(
                             asp_ndx + 1,
                             " approximate number of hillslopes ",
                             hillslope_fraction[asp_ndx]
@@ -1101,22 +1064,22 @@ def CalcGeoparamsGridcell(
                         / np.sum(area[aind[0:nvbins]])
                     )
 
-            if verbose:
-                # compare Agrc/nstreams eff. radius to mean hill length
-                # print('mean_hill_lengths ',mean_hill_length)
-                print("mean_hill_length ", np.mean(mean_hill_length))
-                # in this model, 4 catchments make up a feature
-                print(
-                    "Total area eff rad ",
-                    np.sqrt(
-                        4 * np.sum(farea[np.isfinite(fhand)]) / stream_number / np.pi
-                    ),
-                )
-                print(
-                    "area per stream ",
-                    np.sum(farea[np.isfinite(fhand)]) / stream_number,
-                )
-                print("mean hillslope area ", 0.25 * np.sum(area))
+            # DEBUGGING OUTPUT
+            # compare Agrc/nstreams eff. radius to mean hill length
+            # debug('mean_hill_lengths ',mean_hill_length)
+            debug("mean_hill_length ", np.mean(mean_hill_length))
+            # in this model, 4 catchments make up a feature
+            debug(
+                "Total area eff rad ",
+                np.sqrt(
+                    4 * np.sum(farea[np.isfinite(fhand)]) / stream_number / np.pi
+                ),
+            )
+            debug(
+                "area per stream ",
+                np.sum(farea[np.isfinite(fhand)]) / stream_number,
+            )
+            debug("mean hillslope area ", 0.25 * np.sum(area))
 
         # Calculate stream geometry from hillslope parameters
         adepth, bdepth = 1e-3, 0.4
@@ -1125,9 +1088,8 @@ def CalcGeoparamsGridcell(
         wdepth = adepth * (uharea**bdepth)
         wwidth = awidth * (uharea**bwidth)
         wslope = mean_network_slope
-        if verbose:
-            print("\nstream channel: width, depth, slope")
-            print(wwidth, wdepth, wslope, "\n")
+        debug("\nstream channel: width, depth, slope")
+        debug(wwidth, wdepth, wslope, "\n")
 
         # Write data to file
         if not printData:
@@ -1140,7 +1102,7 @@ def CalcGeoparamsGridcell(
             )
 
             w = netcdf4.Dataset(outfile, "w")
-            print(f"outfile: {outfile}")
+            info(f"outfile: {outfile}")
             w.creation_date = timetag
 
             w.createDimension("lsmlon", 1)
@@ -1412,12 +1374,10 @@ def CalcGeoparamsGridcell(
                 ] = wslope
 
                 w.close()
-                if verbose:
-                    print(outfile + " created")
+                debug(outfile + " created")
 
     etime = time.time()
-    if verbose:
-        print("time calc_geoparams ", etime - stime, " s")
+    debug("time calc_geoparams ", etime - stime, " s")
     return
 
 
@@ -1484,7 +1444,6 @@ class LandscapeCharacteristics(object):
         dem_source="MERIT",
         maskFlooded=True,
         pshape=None,
-        verbose=False,
     ):
 
         if accum_thresh == 0:
@@ -1528,7 +1487,7 @@ class LandscapeCharacteristics(object):
         land_fraction = np.sum(np.where(np.abs(elev) > eps, 1, 0)) / elev.size
         min_land_fraction = 0.01
         if land_fraction <= min_land_fraction:
-            print("skipping; land fraction too small ", land_fraction)
+            warning("skipping; land fraction too small ", land_fraction)
             return -1
 
         # lf_thresh = 0.75
@@ -1550,8 +1509,7 @@ class LandscapeCharacteristics(object):
 
         # ---  Calculate geographic coordinates  -----------------------
         x = grid.affine
-        if verbose:
-            print("grid affine ", x.a, x.b, x.c, x.d, x.e, x.f)
+        debug("grid affine ", x.a, x.b, x.c, x.d, x.e, x.f)
         x0, y0, dx, dy = x.c, x.f, x.a, x.e
         ys, xs = grid.shape
         # lon/lat will be center of pixel
@@ -1563,15 +1521,14 @@ class LandscapeCharacteristics(object):
         # ---  Fill depressions and resolve flats in the DEM  --------------
         grid.fill_depressions("dem", out_name="flooded_dem", nodata_in=fill_value)
 
-        if verbose:
-            print("depressions filled")
+        debug("depressions filled")
 
         # Ignore dems with only one point
         s1 = np.sum(np.where(grid.dem > 0, 1, 0))
         s2 = np.sum(np.where(grid.flooded_dem > 0, 1, 0))
         if np.logical_or(s1 <= 1, s2 <= 1):
-            print("no dem, no flooded ", s1, s2)
-            print("skipping")
+            info("no dem, no flooded ", s1, s2)
+            info("skipping")
             return -1
 
         # Resolve flats in DEM
@@ -1579,10 +1536,9 @@ class LandscapeCharacteristics(object):
             grid.resolve_flats(
                 "flooded_dem", out_name="inflated_dem", nodata_in=fill_value
             )
-            if verbose:
-                print("flats resolved")
+            debug("flats resolved")
         except ValueError:
-            print("flats cannot be resolved")
+            warning("flats cannot be resolved")
             grid.add_gridded_data(grid.dem, "inflated_dem", nodata=fill_value)
 
         # Set flat areas to fill_value
@@ -1592,8 +1548,7 @@ class LandscapeCharacteristics(object):
         flat_mask = np.zeros(grid.dem.shape)
         if maskFlooded:
             if num_flooded_pts > 0:
-                if verbose:
-                    print("total flooded fraction ", num_flooded_pts / grid.dem.size)
+                debug("total flooded fraction ", num_flooded_pts / grid.dem.size)
                 # determine threshold for cells to be excluded
                 flood_thresh = 0
                 # fraction of flood mask to remove
@@ -1606,13 +1561,11 @@ class LandscapeCharacteristics(object):
                     if frac_below_ft > ffraction:
                         flood_thresh = ft
                         break
-                if verbose:
-                    print("flood threshold ", flood_thresh)
+                debug("flood threshold ", flood_thresh)
                 # exclude regions that have been flooded
                 flat_mask = np.where(np.abs(fflood) > flood_thresh, 1, 0)
             else:
-                if verbose:
-                    print("no flooded points")
+                debug("no flooded points")
                 pass
 
         grid.dem[flat_mask > 0] = fill_value
@@ -1631,19 +1584,16 @@ class LandscapeCharacteristics(object):
         grid.flowdir(
             data="inflated_dem", out_name="dir", dirmap=dirmap, nodata_in=fill_value
         )
-        if verbose:
-            print("flow directions computed")
+        debug("flow directions computed")
 
         # ---  Calculate flow accumulation using direction map
 
         # Calculate flow accumulation (input data is flow direction) #
         grid.accumulation(data="dir", dirmap=dirmap, out_name="acc")
-        if verbose:
-            print("accumulation calculated")
+        debug("accumulation calculated")
 
         grid.slope_aspect(dem="dem")
-        if verbose:
-            print("slope/aspect calculated")
+        debug("slope/aspect calculated")
 
         # --- check for flat areas (e.g. lakes) that were not considered flooded
         slope_threshold = 1e-5
@@ -1658,8 +1608,7 @@ class LandscapeCharacteristics(object):
             self.thresh = accum_thresh
         else:
             self.thresh = np.max(grid.acc) / 100
-            if verbose:
-                print("new thresh: ", self.thresh)
+            debug("new thresh: ", self.thresh)
 
         # create mask of accumulation values above thresh, where dem is valid
         acc_mask = np.logical_and(
@@ -1671,19 +1620,17 @@ class LandscapeCharacteristics(object):
                 fdir=dir_raster, mask=acc_mask, dirmap=dirmap
             )
         except MemoryError:
-            print("Memory Error in extract_river_network, skipping")
+            warning("Memory Error in extract_river_network, skipping")
             return -1
 
         network = branches[
             "features"
         ]  # list of features (<class 'geojson.feature.Feature'>)
-        if verbose:
-            print("stream network calculated")
+        debug("stream network calculated")
 
         # ---  Create stream network id/coordinate arrays  --------------
         nstreams = len(network)
-        if verbose:
-            print("nstreams ", nstreams)
+        debug("nstreams ", nstreams)
         nreach = 0
         for n in range(nstreams):
             nreach += len(network[n]["geometry"]["coordinates"])
@@ -1720,7 +1667,7 @@ class LandscapeCharacteristics(object):
                 fdir=dir_raster, mask=acc_mask, dirmap=dirmap
             )
         except MemoryError:
-            print("Memory Error in river_network_length_and_slope, skipping")
+            warning("Memory Error in river_network_length_and_slope, skipping")
             return -1
 
         self.network_length = x["length"]
@@ -1732,15 +1679,13 @@ class LandscapeCharacteristics(object):
         self.reach_lon = x["mlon"]
         self.reach_lat = x["mlat"]
 
-        if verbose:
-            print("\nnetwork length ", self.network_length)
+        debug("\nnetwork length ", self.network_length)
 
         # add stream channel mask and initial stream channel id to grid object
         if useConsistentChannelMask:
             grid.create_channel_mask(fdir=dir_raster, mask=acc_mask, dirmap=dirmap)
 
-            if verbose:
-                print("channel mask and id created")
+            debug("channel mask and id created")
 
         else:
             # use channel network to define mask
@@ -1777,8 +1722,7 @@ class LandscapeCharacteristics(object):
 
         self.channel_mask = grid.channel_mask
 
-        if verbose:
-            print("hand calculated")
+        debug("hand calculated")
 
         # self.dem    = np.asarray(grid.view('dem'))
         self.hand = np.asarray(grid.view("hand"))
@@ -1819,44 +1763,38 @@ class LandscapeCharacteristics(object):
             )
 
         # convert aspect to hillslope mean values
-        if verbose:
-            print("averaging aspect across catchments")
+        debug("averaging aspect across catchments")
         aspect2d_catchment_mean = np.zeros((jm, im))
         uid = np.unique(self.drainage_id[np.isfinite(self.drainage_id)])
         if useMultiProcessing:
             # parallel version
-            if verbose:
-                stime = time.time()
+            stime = time.time()
 
             aspect2d_catchment_mean = set_aspect_to_hillslope_mean_parallel(
                 self.drainage_id, self.aspect, self.hillslope, npools=npools
             )
-            if verbose:
-                etime = time.time()
-                print(
-                    "\nTime to complete set_aspect_to_hillslope_mean_parallel: {:.3f} seconds".format(
-                        etime - stime
-                    )
+            etime = time.time()
+            debug(
+                "\nTime to complete set_aspect_to_hillslope_mean_parallel: {:.3f} seconds".format(
+                    etime - stime
                 )
+            )
 
         else:
             # serial version
-            if verbose:
-                stime = time.time()
+            stime = time.time()
             aspect2d_catchment_mean = set_aspect_to_hillslope_mean_serial(
                 self.drainage_id, self.aspect, self.hillslope
             )
-            if verbose:
-                etime = time.time()
-                print(
-                    "\nTime to complete set_aspect_to_hillslope_mean_serial: {:.3f} seconds".format(
-                        etime - stime
-                    )
+            etime = time.time()
+            debug(
+                "\nTime to complete set_aspect_to_hillslope_mean_serial: {:.3f} seconds".format(
+                    etime - stime
                 )
+            )
 
         # set aspect to catchment averaged values
         self.aspect = aspect2d_catchment_mean
-        if verbose:
-            print("aspect averaged over catchments")
+        debug("aspect averaged over catchments")
 
         return 0
