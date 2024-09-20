@@ -196,8 +196,16 @@ slon = np.squeeze(slon2d[0, :])
 slat = np.squeeze(slat2d[:, 0])
 sim = slon.size
 sjm = slat.size
+
+mask_var = None
+mask_var_options = ["PFTDATA_MASK", "LANDFRAC_PFT"]
+for mask_var_option in mask_var_options:
+    if mask_var_option in f.variables.keys():
+        mask_var = mask_var_option
+if mask_var is None:
+    raise KeyError(f"No variable found in sfcfile that looks like a mask ({mask_var_options})")
 landmask = np.asarray(
-    f.variables["PFTDATA_MASK"][
+    f.variables[mask_var][
         :,
     ]
 )
@@ -208,6 +216,8 @@ pct_natveg = np.asarray(
 )
 f.close()
 
+if mask_var == "LANDFRAC_PFT":
+    landmask[np.where(landmask > 0)] = 1
 landmask[pct_natveg <= 0] = 0
 
 dlon = np.abs(slon[0] - slon[1])
