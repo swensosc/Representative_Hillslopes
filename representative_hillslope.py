@@ -21,7 +21,7 @@ from terrain_utils import (
     set_aspect_to_hillslope_mean_serial,
     set_aspect_to_hillslope_mean_parallel,
 )
-from rh_logging import info, warning, error, debug
+from rh_logging import info, warning, error, debug, logger_level_debug
 
 sys.path.append("pysheds")
 from pysheds.pgrid import Grid
@@ -702,15 +702,16 @@ def CalcGeoparamsGridcell(
         # mean stream length
         mean_stream_length = mean_stream_length / stream_number
 
-        debug("mean stream length ", mean_stream_length)
-        debug("stream density ", stream_number * mean_stream_length / np.sum(farea))
-        carea = np.asarray([np.sum(farea[fdid == i]) for i in np.unique(fdid)])
-        debug(
-            "mean catchment area ",
-            np.mean(carea),
-            np.sum(farea[np.isfinite(fhand)]) / stream_number,
-        )
-        debug("accum_thresh in m2 ", accum_thresh * ares * ares)
+        if logger_level_debug():
+            debug("mean stream length ", mean_stream_length)
+            debug("stream density ", stream_number * mean_stream_length / np.sum(farea))
+            carea = np.asarray([np.sum(farea[fdid == i]) for i in np.unique(fdid)])
+            debug(
+                "mean catchment area ",
+                np.mean(carea),
+                np.sum(farea[np.isfinite(fhand)]) / stream_number,
+            )
+            debug("accum_thresh in m2 ", accum_thresh * ares * ares)
 
         # Determine hand bins such that approximately
         # equal areas are obtained, subject to a constraint on
