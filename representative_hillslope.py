@@ -1676,6 +1676,7 @@ class LandscapeCharacteristics(object):
             latdir = "north_to_south"
 
         try:
+            debug("calling grid.river_network_length_and_slope()")
             x = grid.river_network_length_and_slope(
                 fdir=dir_raster, mask=acc_mask, dirmap=dirmap
             )
