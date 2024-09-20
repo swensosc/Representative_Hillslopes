@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from datetime import datetime as dt
 import time
 import argparse
 import os
@@ -123,10 +124,11 @@ if totalChunks == 10**width:
     # Exactly a power of 10? Increase width by 1.
     width += 1
 chunkLabel = "{number:0{width}d}".format(width=width, number=args.cndx)
-jobname = os.getenv("PBS_JOB")
-if jobname is None:
-    jobname = "chunk"
-logfile = os.path.join(os.getcwd(), jobname + f"_{chunkLabel}.log2")
+jobname = os.getenv("PBS_JOBNAME")
+if jobname is None or jobname == "STDIN":
+    jobname = dt.now().strftime("%Y%m%d_%H%M%S")
+logfile = os.path.join(args.output_dir, "logs", f"chunk{chunkLabel}_{jobname}.log")
+print(logfile)
 config_logger(logfile)
 
 doTimer = args.timer
