@@ -13,11 +13,12 @@ cd "$(dirname "${python_script}")"
 # Set default values of optional inputs
 done_file=
 dry_run=0
+debug=""
 
 script="$0"
 function usage {
     echo " "
-    echo -e "usage: $script FSURDAT_FILE DEMDATA_DIR OUTPUT_DIR CNDX NCHUNKS [--done-file] [--dry-run]\n"
+    echo -e "usage: $script FSURDAT_FILE DEMDATA_DIR OUTPUT_DIR CNDX NCHUNKS [--done-file] [--dry-run] [--debug]\n"
 }
 function help {
     usage
@@ -56,6 +57,9 @@ nchunks="$1"; shift
 # Handle optional arguments
 while [ "$1" != "" ]; do
    case $1 in
+       --debug )
+           debug="--debug"
+           ;;
        --done-file ) shift
            done_file="$1"
             ;;
@@ -85,7 +89,7 @@ if [[ -f "${onechunk_preamble_script}" ]]; then
     cmd="$cmd $(. "${onechunk_preamble_script}")"
 fi
 
-$cmd "${python_script}" --sfcfile "${fsurdat}" --dem-data-path "${demdata}" -o "${outdir}" --nchunks $nchunks ${cndx} --debug
+$cmd "${python_script}" ${debug} --sfcfile "${fsurdat}" --dem-data-path "${demdata}" -o "${outdir}" --nchunks $nchunks ${cndx}
 
 if [[ ${dry_run} -eq 0 && "${done_file}" != "" ]]; then
    mkdir -p "$(dirname "${done_file}")"

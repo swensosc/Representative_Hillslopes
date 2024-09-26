@@ -12,6 +12,7 @@ batch_submit_preamble_script="${scriptdir}/batch_submit_preamble.sh"
 # Set default values of optional inputs
 nchunks=6
 dry_run=0
+debug=""
 
 script="$0"
 function usage {
@@ -25,6 +26,7 @@ function help {
     echo "   demdata_dir    Directory containing digital elevation map data"
     echo "   output_dir     Directory to which outputs should be saved"
     echo -e "\nOPTIONAL:" 
+    echo "   --debug          Print debug-level output from HAND analysis script."
     echo "   --dry-run        Print the job submission commands that will be run, without actually running them."
     echo "   -n/--nchunks N   Number of chunks to split processing into. Default: ${nchunks}"
 }
@@ -66,6 +68,9 @@ while [ "$1" != "" ]; do
    case $1 in
        --dry-run )
            dry_run=1
+           ;;
+       --debug )
+           debug="--debug"
            ;;
        -n | --nchunks | --n-chunks ) shift
            nchunks=$1
@@ -130,7 +135,7 @@ for cndx in $(seq 1 ${nchunks_sq}); do
     if [[ -f ${batch_submit_preamble_script} ]]; then
         cmd="${cmd} $(. ${scriptdir}/batch_submit_preamble.sh)"
     fi
-    $cmd "${call_hand_analysis_script}" "${fsurdat}" "${demdata}" "${outdir}" ${cndx} ${nchunks} --done-file "${done_file}"
+    $cmd "${call_hand_analysis_script}" "${fsurdat}" "${demdata}" "${outdir}" ${cndx} ${nchunks} --done-file "${done_file}" ${debug}
     if [[ ${dry_run} -eq 1 ]]; then
         echo " "
     fi
