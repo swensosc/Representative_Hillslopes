@@ -31,29 +31,22 @@ def concatenate_like_print(list_in):
     msg = msg.replace("  ", " ")
     return msg
 
-def info(*args):
+def _print_and_log(level, logger_fn, *args):
+    if logger.level > level:
+        return
     msg = concatenate_like_print(args)
-    if logger.level <= logging.INFO:
-        print(msg, flush=printFlush)
-    logger.info(msg)
+    print(msg)
+    logger_fn(msg)
 
+
+def info(*args):
+    _print_and_log(logging.INFO, logger.info, *args)
 
 def warning(*args):
-    msg = concatenate_like_print(args)
-    if logger.level <= logging.WARNING:
-        print(msg, flush=printFlush)
-    logger.warning(msg)
-
+    _print_and_log(logging.WARNING, logger.warning, *args)
 
 def error(*args):
-    msg = concatenate_like_print(args)
-    if logger.level <= logging.ERROR:
-        print(msg, flush=printFlush)
-    logger.error(msg)
-
+    _print_and_log(logging.ERROR, logger.error, *args)
 
 def debug(*args):
-    msg = concatenate_like_print(args)
-    if logger.level <= logging.DEBUG:
-        print(msg, flush=printFlush)
-    logger.debug(msg)
+    _print_and_log(logging.DEBUG, logger.debug, *args)
