@@ -6,6 +6,7 @@ import rasterio
 from osgeo import gdal as gd
 
 from geospatial_utils import arg_closest_point
+from rh_logging import info, warning, error, debug
 
 """
 routines related to reading DEM data
@@ -83,12 +84,12 @@ def _check_files_exist(dem_file_template, efiles):
         if file_exists > 0:
             emask[n] = False
     if not np.any(emask):
-        print("All DEM files missing:")
+        error("All DEM files missing:")
         for file in efiles:
-            print(f"   {file}")
-        raise FileNotFoundError(
-            f"No DEM files found matching template: {dem_file_template}"
-        )
+            error(f"   {file}")
+        msg = f"No DEM files found matching template: {dem_file_template}"
+        error(msg)
+        raise FileNotFoundError(msg)
     efiles = efiles[emask]
     return efiles
 
@@ -306,13 +307,13 @@ def read_MERIT_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
         j4 = arg_closest_point(mlat[j2], elat)
 
         if np.abs(np.mean(elon[i3 : i4 + 1] - mlon[i1 : i2 + 1])) > 1e-10:
-            print(np.mean(elon[i3 : i4 + 1] - mlon[i1 : i2 + 1]))
-            print(elon[i3 : i4 + 1][:10])
-            print(mlon[i1 : i2 + 1][:10])
+            info(np.mean(elon[i3 : i4 + 1] - mlon[i1 : i2 + 1]))
+            info(elon[i3 : i4 + 1][:10])
+            info(mlon[i1 : i2 + 1][:10])
         if np.abs(np.mean(elat[j3 : j4 + 1] - mlat[j1 : j2 + 1])) > 1e-10:
-            print(np.mean(elat[j3 : j4 + 1] - mlat[j1 : j2 + 1]))
-            print(elat[j3 : j4 + 1][:10])
-            print(mlat[j1 : j2 + 1][:10])
+            info(np.mean(elat[j3 : j4 + 1] - mlat[j1 : j2 + 1]))
+            info(elat[j3 : j4 + 1][:10])
+            info(mlat[j1 : j2 + 1][:10])
 
         elev[j3 : j4 + 1, i3 : i4 + 1] = merit_elev[j1 : j2 + 1, i1 : i2 + 1]
 
@@ -489,14 +490,18 @@ def read_ASTER_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
         j4 = arg_closest_point(mlat[j2], elat)
 
         if np.abs(np.mean(elon[i3 : i4 + 1] - mlon[i1 : i2 + 1])) > 1e-10:
-            print(np.mean(elon[i3 : i4 + 1] - mlon[i1 : i2 + 1]))
-            print(elon[i3 : i4 + 1][:10])
-            raise RuntimeError(mlon[i1 : i2 + 1][:10])
+            error(np.mean(elon[i3 : i4 + 1] - mlon[i1 : i2 + 1]))
+            error(elon[i3 : i4 + 1][:10])
+            msg = str(mlon[i1 : i2 + 1][:10])
+            error(msg)
+            raise RuntimeError(msg)
 
         if np.abs(np.mean(elat[j3 : j4 + 1] - mlat[j1 : j2 + 1])) > 1e-10:
-            print(np.mean(elat[j3 : j4 + 1] - mlat[j1 : j2 + 1]))
-            print(elat[j3 : j4 + 1][:10])
-            raise RuntimeError(mlat[j1 : j2 + 1][:10])
+            error(np.mean(elat[j3 : j4 + 1] - mlat[j1 : j2 + 1]))
+            error(elat[j3 : j4 + 1][:10])
+            msg = str(mlat[j1 : j2 + 1][:10])
+            error(msg)
+            raise RuntimeError(msg)
 
         elev[j3 : j4 + 1, i3 : i4 + 1] = aster_elev[j1 : j2 + 1, i1 : i2 + 1]
 

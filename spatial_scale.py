@@ -8,6 +8,7 @@ from geospatial_utils import (
     blend_edges,
     calc_gradient,
 )
+from rh_logging import info, warning, error, debug
 
 """
 _fit_polynomial:         calculate polynomial coefficients
@@ -100,7 +101,7 @@ def _log_normal(x, amp, sigma, mu, shift=0):
     return f
 
 
-def _fit_peak_lognormal(x, y, verbose=False):
+def _fit_peak_lognormal(x, y):
     # use scipy signal.find_peaks to locate a peak using a lognormal model
     meansig = np.mean(y)
     pheight = (meansig, None)
@@ -120,8 +121,7 @@ def _fit_peak_lognormal(x, y, verbose=False):
 
     # if no peak found, try reducing prominence
     if peaks.size == 0:
-        if verbose:
-            print("no peaks found, reducing prominence")
+        debug("no peaks found, reducing prominence")
 
         pprom = (0.1 * meansig, None)
         peaks, props = signal.find_peaks(
@@ -141,11 +141,10 @@ def _fit_peak_lognormal(x, y, verbose=False):
         peaks = np.append(peaks, 0)
         props["widths"] = np.append(props["widths"], np.max(props["widths"]))
 
-    if verbose:
-        print("pheight ", pheight)
-        print("pwidth ", pwidth)
-        print("pprom ", pprom)
-        print("props ", props)
+    debug("pheight ", pheight)
+    debug("pwidth ", pwidth)
+    debug("pprom ", pprom)
+    debug("props ", props)
 
     # fit a lognormal curve to each peak to quantify shape
     peak_sharp = []
@@ -177,9 +176,10 @@ def _fit_peak_lognormal(x, y, verbose=False):
         mu = np.log(center)
 
         # One peak
-        if verbose:
-            print("\ninitial peak ", center)
-            print("\ninitial amp,sigma,mu ", amp, sigma, mu)
+        debug("\n")
+        debug("initial peak ", center)
+        debug("\n")
+        debug("initial amp,sigma,mu ", amp, sigma, mu)
         try:
             p0_1lognorm = [amp, sigma, mu]
             popt_1lognorm, pcov_1lognorm = optimize.curve_fit(
@@ -196,8 +196,7 @@ def _fit_peak_lognormal(x, y, verbose=False):
                 popt_1lognorm = [0, 0, 1]
         except:
             popt_1lognorm = [0, 0, 1]
-        if verbose:
-            print("popt_1lognorm: ", popt_1lognorm)
+        debug("popt_1lognorm: ", popt_1lognorm)
 
         peak_coefs.append(popt_1lognorm)
         peak_gof.append(
@@ -221,8 +220,7 @@ def _fit_peak_lognormal(x, y, verbose=False):
         else:
             peak_sharp.append(0)
 
-    if verbose:
-        print("peak sharp values ", peak_sharp)
+    debug("peak sharp values ", peak_sharp)
 
     if len(peak_sharp) > 0:
         pmax = np.argmax(np.asarray(peak_sharp))
@@ -241,7 +239,7 @@ def _gaussian_no_norm(x, amp, cen, sigma):
     return amp * np.exp(-((x - cen) ** 2) / (2 * (sigma**2)))
 
 
-def _fit_peak_gaussian(x, y, verbose=False):
+def _fit_peak_gaussian(x, y):
     # use scipy signal.find_peaks to locate a peak using a gaussian model
     meansig = np.mean(y)
     pheight = (meansig, None)
@@ -261,8 +259,7 @@ def _fit_peak_gaussian(x, y, verbose=False):
 
     # if no peak found, try reducing prominence
     if peaks.size == 0:
-        if verbose:
-            print("no peaks found, reducing prominence")
+        debug("no peaks found, reducing prominence")
 
         pprom = (0.1 * meansig, None)
         peaks, props = signal.find_peaks(
@@ -282,11 +279,10 @@ def _fit_peak_gaussian(x, y, verbose=False):
         peaks = np.append(peaks, 0)
         props["widths"] = np.append(props["widths"], np.max(props["widths"]))
 
-    if verbose:
-        print("pheight ", pheight)
-        print("pwidth ", pwidth)
-        print("pprom ", pprom)
-        print("props ", props)
+    debug("pheight ", pheight)
+    debug("pwidth ", pwidth)
+    debug("pprom ", pprom)
+    debug("props ", props)
 
     # fit a gaussian to each peak to quantify shape
     peak_sharp = []
@@ -317,8 +313,8 @@ def _fit_peak_gaussian(x, y, verbose=False):
         sigma = gsigma
 
         # One peak
-        if verbose:
-            print("\ninitial amp,center,sigma ", amp, center, sigma)
+        debug("\n")
+        debug("initial amp,center,sigma ", amp, center, sigma)
         try:
             p0_1gauss = [amp, center, sigma]
             popt_1gauss, pcov_1gauss = optimize.curve_fit(
@@ -332,8 +328,7 @@ def _fit_peak_gaussian(x, y, verbose=False):
                 popt_1gauss = [0, 0, 1]
         except:
             popt_1gauss = [0, 0, 1]
-        if verbose:
-            print("popt_1gauss: ", popt_1gauss)
+        debug("popt_1gauss: ", popt_1gauss)
 
         peak_coefs.append(popt_1gauss)
         peak_gof.append(
@@ -353,8 +348,7 @@ def _fit_peak_gaussian(x, y, verbose=False):
         else:
             peak_sharp.append(0)
 
-    if verbose:
-        print("peak sharp values ", peak_sharp)
+    debug("peak sharp values ", peak_sharp)
 
     if len(peak_sharp) > 0:
         pmax = np.argmax(np.asarray(peak_sharp))
@@ -369,9 +363,7 @@ def _fit_peak_gaussian(x, y, verbose=False):
     return {"coefs": pgauss, "psharp": psharp, "gof": pgof}
 
 
-def _LocatePeak(
-    lambda_1d, ratio_var_to_lambda, maxWavelength=1e6, minWavelength=1, verbose=False
-):
+def _LocatePeak(lambda_1d, ratio_var_to_lambda, maxWavelength=1e6, minWavelength=1):
     """
     Fit ratio of variance to wavelength using linear and gaussian models.
     """
@@ -383,11 +375,11 @@ def _LocatePeak(
 
     # Fit different models to variance ratio
     # and compare goodness of fit
-    if verbose:
-        print("\nBeginning curve fitting")
-        print("min max lambda ", minWavelength, maxWavelength)
-        print("lambdamin lambdalmax ", lambda_1d[lmin], lambda_1d[lmax])
-        print("lmin lmax ", lmin, lmax)
+    debug("\n")
+    debug("Beginning curve fitting")
+    debug("min max lambda ", minWavelength, maxWavelength)
+    debug("lambdamin lambdalmax ", lambda_1d[lmin], lambda_1d[lmax])
+    debug("lmin lmax ", lmin, lmax)
 
     ncurves = 3
     gof = np.zeros((ncurves))
@@ -410,7 +402,6 @@ def _LocatePeak(
     x = _fit_peak_gaussian(
         logLambda[lmin : lmax + 1],
         ratio_var_to_lambda[lmin : lmax + 1],
-        verbose=verbose,
     )
     pgauss = x["coefs"]
     psharp_ga = x["psharp"]
@@ -420,7 +411,6 @@ def _LocatePeak(
     x = _fit_peak_lognormal(
         logLambda[lmin : lmax + 1],
         ratio_var_to_lambda[lmin : lmax + 1],
-        verbose=verbose,
     )
     plognorm = x["coefs"]
     psharp_ln = x["psharp"]
@@ -440,16 +430,17 @@ def _LocatePeak(
     )
     se = np.sqrt(num / den)
     tscore = np.abs(lcoefs[1]) / se
-    if verbose:
-        print("tscore ", tscore)
+    debug("tscore ", tscore)
 
-    if verbose:
-        if psharp_ga == 0:
-            print("\npeak sharpness is zero; gaussian fit failed")
-        elif psharp_ln == 0:
-            print("\npeak sharpness is zero; lognormal fit failed")
-        else:
-            print("\npeak sharpness ", psharp_ga, psharp_ln)
+    if psharp_ga == 0:
+        debug("\n")
+        debug("peak sharpness is zero; gaussian fit failed")
+    elif psharp_ln == 0:
+        debug("\n")
+        debug("peak sharpness is zero; lognormal fit failed")
+    else:
+        debug("\n")
+        debug("peak sharpness ", psharp_ga, psharp_ln)
 
     # Select best model
     psharp_threshold = 1.5
@@ -462,16 +453,16 @@ def _LocatePeak(
             spatialScale = np.min([10 ** pgauss[1], maxWavelength])
             spatialScale = np.max([spatialScale, minWavelength])
             selection = 1
-            if verbose:
-                print("\ngaussian selected")
+            debug("\n")
+            debug("gaussian selected")
         else:
             model = "lognormal"
             ln_peak = np.exp(plognorm[2])
             spatialScale = np.min([10**ln_peak, maxWavelength])
             spatialScale = np.max([spatialScale, minWavelength])
             selection = 2
-            if verbose:
-                print("\nlognormal selected")
+            debug("\n")
+            debug("lognormal selected")
     else:
         # linear trend
         if tscore > tscore_threshold:
@@ -482,21 +473,21 @@ def _LocatePeak(
             else:
                 spatialScale = minWavelength
                 selection = 4
-            if verbose:
-                print("\nlinear selected ", selection)
+            debug("\n")
+            debug("linear selected ", selection)
         # if linear trend is not significant, select flat distribution
         else:
             model = "flat"
             spatialScale = minWavelength
             selection = 5
-            if verbose:
-                print("\nflat selected")
+            debug("\n")
+            debug("flat selected")
 
     if model == "None":
         raise RuntimeError("No model selected")
 
-    if verbose:
-        print("\nEnd curve fitting")
+    debug("\n")
+    debug("End curve fitting")
 
     # set coefficients for output
     if model == "gaussian":
@@ -526,7 +517,6 @@ def IdentifySpatialScaleLaplacian(
     doBlendEdges=True,
     nlambda=30,
     dem_source="MERIT",
-    verbose=False,
 ):
     """
     Identify the spatial scale at which the input DEM
@@ -562,17 +552,16 @@ def IdentifySpatialScaleLaplacian(
     # remove smoothed elevation
     lmask = np.where(elev > min_land_elevation, 1, 0)
     land_frac = np.sum(lmask) / lmask.size
-    if verbose:
-        print("approximate resolution in m: ", ares)
-        print("max wavelength for hillslope, jm, im: ", maxWavelength, ejm, eim, "\n")
-        print("land fraction ", land_frac)
+    debug("approximate resolution in m: ", ares)
+    debug("max wavelength for hillslope, jm, im: ", maxWavelength, ejm, eim)
+    debug("\n")
+    debug("land fraction ", land_frac)
 
     min_land_fraction = 0.01
     if land_frac <= min_land_fraction:
         return {"validDEM": False}
     if land_frac < land_threshold:
-        if verbose:
-            print("Removing smoothed elevation")
+        debug("Removing smoothed elevation")
         sf = 0.75
 
         elonc = np.round(
@@ -637,8 +626,8 @@ def IdentifySpatialScaleLaplacian(
         win = 4
         elev = blend_edges(elev, n=win)
 
-        if verbose:
-            print("Planar surface removed from elevation\n")
+        debug("Planar surface removed from elevation")
+        debug("\n")
 
     # Calculate 2D DFTs (output is complex array)
     # first dft is real, giving complex result w/ N/2 coefs
@@ -654,8 +643,8 @@ def IdentifySpatialScaleLaplacian(
     laplac_fft = np.fft.rfft2(laplac, norm="ortho")
     laplac_amp_fft = np.abs(laplac_fft)
 
-    if verbose:
-        print("DFTs calculated\n")
+    debug("DFTs calculated")
+    debug("\n")
 
     # use appropriate (real/complex) routine for frequencies
     rowfreq = np.fft.fftfreq(ejm)
@@ -677,9 +666,7 @@ def IdentifySpatialScaleLaplacian(
     lambda_1d, laplac_amp_1d = x["lambda"], x["amp"]
 
     # fit curve in window around fit_peaks
-    x = _LocatePeak(
-        lambda_1d, laplac_amp_1d, maxWavelength=maxWavelength, verbose=verbose
-    )
+    x = _LocatePeak(lambda_1d, laplac_amp_1d, maxWavelength=maxWavelength)
 
     model = x["model"]
     spatialScale = x["spatialScale"]
@@ -689,10 +676,8 @@ def IdentifySpatialScaleLaplacian(
     minWavelength = np.min(lambda_1d)
     spatialScale = np.max([spatialScale, minWavelength])
 
-    if verbose:
-        print(
-            "\nmodel, spatial scale, selection method: ", model, spatialScale, selection
-        )
+    debug("\n")
+    debug("model, spatial scale, selection method: ", model, spatialScale, selection)
 
     return {
         "model": model,
