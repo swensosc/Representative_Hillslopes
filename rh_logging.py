@@ -26,7 +26,7 @@ def set_logger_level(checkSinglePoint, args_debug, args_printFlush):
 def logger_level_debug():
     return logger.level <= logging.DEBUG
 
-def concatenate_like_print(list_in):
+def _concatenate_like_print(list_in):
     msg = " ".join([x if isinstance(x, str) else str(x) for x in list_in])
     msg = msg.replace("  ", " ")
     return msg
@@ -34,7 +34,7 @@ def concatenate_like_print(list_in):
 def _print_and_log(level, logger_fn, *args):
     if logger.level > level:
         return
-    msg = concatenate_like_print(args)
+    msg = _concatenate_like_print(args)
     print(msg, flush=printFlush)
     logger_fn(msg)
 
