@@ -219,9 +219,9 @@ for mask_var_option in mask_var_options:
         mask_var = mask_var_option
         break
 if mask_var is None:
-    raise KeyError(
-        f"No variable found in sfcfile that looks like a mask ({mask_var_options})"
-    )
+    msg = f"No variable found in sfcfile that looks like a mask ({mask_var_options})"
+    error(msg)
+    raise KeyError(msg)
 landmask = np.asarray(
     f.variables[mask_var][
         :,
