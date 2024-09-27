@@ -35,7 +35,7 @@ def _print_and_log(level, logger_fn, *args):
     if logger.level > level:
         return
     msg = concatenate_like_print(args)
-    print(msg)
+    print(msg, flush=printFlush)
     logger_fn(msg)
 
 
