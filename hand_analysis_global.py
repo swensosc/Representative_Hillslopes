@@ -355,7 +355,8 @@ for index, k in enumerate(ji_pairs):
         useMultiProcessing=args.useMultiProcessing,
     )
 
+info("\n")
+info("hand_analysis_global complete")
 if doTimer:
     etime = time.time()
-    info("\n")
     info("Time to complete script: {:.3f} seconds".format(etime - stime))

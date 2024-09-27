@@ -1391,7 +1391,7 @@ def CalcGeoparamsGridcell(
                 debug(outfile + " created")
 
     etime = time.time()
-    debug("time calc_geoparams ", etime - stime, " s")
+    debug("time to complete CalcGeoparamsGridcell(): ", etime - stime, " s")
     return
 
 
