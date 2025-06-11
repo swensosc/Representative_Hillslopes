@@ -1,7 +1,3 @@
-## Front matter: README for `Representative_Hillslopes` shell scripts
-Sam S. Rabin (samrabin@ucar.edu)
-(2024-10-08)
-
 ## `hand_analysis_loop.sh`
 
 This script performs the Height Above Nearest Drainage (HAND) analysis for each gridcell. It breaks the analysis into a number of chunks---by default, 36---to enable parallel processing using batch submission scripts. Do
