@@ -1741,11 +1741,12 @@ class LandscapeCharacteristics(object):
         debug("hand calculated")
 
         # self.dem    = np.asarray(grid.view('dem'))
-        self.hand = np.asarray(grid.view("hand"))
-        self.dtnd = np.asarray(grid.view("dtnd"))
+        self.hand   = np.asarray(grid.view("hand"))
+        self.dtnd   = np.asarray(grid.view("dtnd"))
         self.aspect = np.asarray(grid.view("aspect"))
-        self.slope = np.asarray(grid.view("slope"))
-        self.aznd = np.asarray(grid.view("aznd"))
+        self.slope  = np.asarray(grid.view("slope"))
+        self.aznd   = np.asarray(grid.view("aznd"))
+        self.accum  = np.asarray(grid.view("acc"))
         self.drainage_id = np.asarray(grid.view("drainage_id"))
         self.fflood = fflood
         lon[lon >= 360] -= 360

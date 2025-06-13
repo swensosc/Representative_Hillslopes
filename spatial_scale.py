@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import optimize, signal
 
-from dem_io import read_MERIT_dem_data, read_ASTER_dem_data
+from dem_io import read_MERIT_dem_data, read_ASTER_dem_data, read_FAB_dem_data
 from geospatial_utils import (
     fit_planar_surface,
     smooth_2d_array,
@@ -515,12 +515,17 @@ def IdentifySpatialScaleLaplacian(
     dem_file_template=None,
     detrendElevation=False,
     doBlendEdges=True,
+    zeroEdges=True,
     nlambda=30,
     dem_source="MERIT",
 ):
     """
     Identify the spatial scale at which the input DEM
     exhibits the largest divergence/convergence of topographic gradient.
+    The reason for passing the dem files rather than the dem itself is
+    that for coastal areas, a smoothed elevation field is removed from the
+    dem, and a larger domain is used to generate the smoothed elevation
+    field.
     """
 
     if maxHillslopeLength == 0:
@@ -528,14 +533,16 @@ def IdentifySpatialScaleLaplacian(
     if type(dem_file_template) == type(None):
         raise RuntimeError("no dem file template supplied")
 
-    if dem_source not in ["MERIT", "ASTER"]:
-        raise RuntimeError("invalid dem source ", dem_source)
+    if dem_source not in ['MERIT','ASTER','FAB']:
+        raise RuntimeError('invalid dem source ', dem_source)
 
-    if dem_source == "MERIT":
-        x = read_MERIT_dem_data(dem_file_template, corners, zeroFill=True)
-    if dem_source == "ASTER":
-        x = read_ASTER_dem_data(dem_file_template, corners, zeroFill=True)
-    validDEM = x["validDEM"]
+    if dem_source == 'MERIT':
+        x = read_MERIT_dem_data(dem_file_template,corners,zeroFill=True)
+    if dem_source == 'ASTER':
+        x = read_ASTER_dem_data(dem_file_template,corners,zeroFill=True)
+    if dem_source == 'FAB':
+        x = read_FAB_dem_data(dem_file_template,corners,zeroFill=True)
+    validDEM = x['validDEM']
 
     if not validDEM:
         return {"validDEM": validDEM}
@@ -594,11 +601,13 @@ def IdentifySpatialScaleLaplacian(
                 corners[n][0] -= 360
 
         # Read in dem data spanning region defined by corners
-        if dem_source == "MERIT":
-            x = read_MERIT_dem_data(dem_file_template, corners, zeroFill=True)
-        if dem_source == "ASTER":
-            x = read_ASTER_dem_data(dem_file_template, corners, zeroFill=True)
-        validDEM = x["validDEM"]
+        if dem_source == 'MERIT':
+            x = read_MERIT_dem_data(dem_file_template,corners,zeroFill=True)
+        if dem_source == 'ASTER':
+            x = read_ASTER_dem_data(dem_file_template,corners,zeroFill=True)
+        if dem_source == 'FAB':
+            x = read_FAB_dem_data(dem_file_template,corners,zeroFill=True)
+        validDEM = x['validDEM']
 
         if validDEM:
             selev, selon, selat = x["elev"], x["lon"], x["lat"]
@@ -640,7 +649,128 @@ def IdentifySpatialScaleLaplacian(
     x = calc_gradient(grad[1], elon, elat)
     laplac += x[1]
 
-    laplac_fft = np.fft.rfft2(laplac, norm="ortho")
+    # zero edges; causing bad fits in some cases
+    if zeroEdges:
+        n = 5
+        laplac[:n,:]=0 ; laplac[:,:n]=0 ; laplac[-n:,:]=0 ; laplac[:,-n:]=0
+
+    laplac_fft = np.fft.rfft2(laplac,norm='ortho')
+    laplac_amp_fft = np.abs(laplac_fft)
+
+    if verbose:
+        print('DFTs calculated\n')
+
+    # use appropriate (real/complex) routine for frequencies
+    rowfreq = np.fft.fftfreq(ejm)
+    colfreq = np.fft.rfftfreq(eim)
+
+    ny,nx = laplac_fft.shape
+    radialfreq = np.sqrt(np.tile(colfreq*colfreq,(ny,1)) \
+                 +np.tile(rowfreq*rowfreq,(nx,1)).T)
+
+    wavelength = np.zeros((ny,nx))
+    wavelength[radialfreq > 0] = 1/radialfreq[radialfreq > 0]
+
+    # set 0 frequency term to arbitrary value
+    wavelength[0,0] = 2*np.max(wavelength)
+
+    # Create logarithmically binned 1d amplitude spectra
+    x = _bin_amplitude_spectrum(laplac_amp_fft,wavelength,nlambda=nlambda)
+    lambda_1d,laplac_amp_1d = x['lambda'],x['amp']
+
+    # fit curve in window around fit_peaks
+    x = _LocatePeak(lambda_1d,laplac_amp_1d,maxWavelength=maxWavelength,verbose=verbose)
+
+    model = x['model']
+    spatialScale = x['spatialScale']
+    selection = x['selection']
+
+    # now set minimum wavelength for spatial scale
+    minWavelength = np.min(lambda_1d)
+    spatialScale = np.max([spatialScale,minWavelength])
+
+    if verbose:
+        print('\nmodel, spatial scale, selection method: ', model, spatialScale, selection)
+
+    return {'model':model,'spatialScale':spatialScale,'selection':selection,'res':ares,'lambda_1d':lambda_1d,'laplac_amp_1d':laplac_amp_1d,'validDEM':validDEM}
+
+def IdentifySpatialScaleLaplacianDEM(ielev, elon, elat, \
+                                     maxHillslopeLength=0, \
+                                     land_threshold=0.75, \
+                                     min_land_elevation=0, \
+                                     detrendElevation=False, \
+                                     doBlendEdges=True, \
+                                     nlambda=30, \
+                                     verbose=False):
+    '''
+    Identify the spatial scale at which the input DEM
+    exhibits the largest divergence/convergence of topographic gradient.
+    '''
+
+    if maxHillslopeLength==0:
+        raise RuntimeError('maxHillslopeLength must be > 0')
+
+    elev = np.copy(ielev)
+    ejm,eim = elev.shape
+
+    # approximate resolution in m
+    ares = np.abs(elat[0]-elat[1]) * (re*np.pi/180)
+    maxWavelength = 2*maxHillslopeLength/ares
+
+    # Create land/ocean mask
+    # if land fraction is below a threshold,
+    # remove smoothed elevation
+    lmask = np.where(elev > min_land_elevation,1,0)
+    land_frac = np.sum(lmask)/lmask.size
+    if verbose:
+        print('approximate resolution in m: ',ares)
+        print('max wavelength for hillslope, jm, im: ',maxWavelength,ejm,eim,'\n')
+        print('land fraction ',land_frac)
+
+    min_land_fraction = 0.01
+    validDEM = True
+    if land_frac <= min_land_fraction:
+        return {'validDEM':False}
+    if land_frac <  land_threshold:
+        if verbose:
+            print('Removing smoothed elevation')
+        sf = 0.75
+
+        i1 = np.argmin(np.abs(selon-elon[0]))
+        i2 = np.argmin(np.abs(selon-elon[-1]))
+        j1 = np.argmin(np.abs(selat-elat[0]))
+        j2 = np.argmin(np.abs(selat-elat[-1]))
+
+        smooth_elev = smooth_2d_array(selev,land_frac=land_frac)[j1:j2+1,i1:i2+1]
+        elev -= smooth_elev
+
+    # Remove a plane (de-trend elevation)
+    if detrendElevation:
+        elev_planar = fit_planar_surface(elev,elon,elat)
+        elev -= elev_planar
+
+    # blend edges to reduce high frequency leakage
+    if doBlendEdges:
+        win = int(np.min([ejm,eim])//33) # 3% from edge
+        win = 7
+        win = 4
+        elev = blend_edges(elev,n=win)
+
+        if verbose:
+            print('Planar surface removed from elevation\n')
+
+    # Calculate 2D DFTs (output is complex array)
+    # first dft is real, giving complex result w/ N/2 coefs
+    # 2nd dft is complex, with N coefs
+
+    # calculate laplacian
+    grad = calc_gradient(elev,elon,elat)
+    x = calc_gradient(grad[0],elon,elat)
+    laplac = x[0]
+    x = calc_gradient(grad[1],elon,elat)
+    laplac += x[1]
+
+    laplac_fft = np.fft.rfft2(laplac,norm='ortho')
     laplac_amp_fft = np.abs(laplac_fft)
 
     debug("DFTs calculated")

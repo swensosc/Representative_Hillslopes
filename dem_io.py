@@ -5,23 +5,24 @@ import pyproj
 import rasterio
 from osgeo import gdal as gd
 
-from geospatial_utils import arg_closest_point
+from geospatial_utils import arg_closest_point, north_or_south, east_or_west
 from rh_logging import info, warning, error, debug
 
 """
 routines related to reading DEM data
 
-_north_or_south:          return 'n'/'s' label
-_east_or_west:            return 'e'/'w' label
-_get_MERIT_dem_filenames: return filenames required to span region
-_get_ASTER_dem_filenames: return filenames required to span region
+return filenames required to span region
+_get_MERIT_dem_filenames
+_get_ASTER_dem_filenames
+_get_FAB_dem_filenames
 
 create_subregion_corner_lists: create four corner lists by subdividing input corner list
-read_MERIT_dem_data:     read in DEM data for region
-read_ASTER_dem_data:     read in DEM data for region
+read in DEM data for region
+read_MERIT_dem_data
+read_ASTER_dem_data
+read_FAB_dem_data
 
 """
-
 
 def _north_or_south(lat):
     if lat >= 0:
@@ -36,9 +37,8 @@ def _east_or_west(lon):
     else:
         return "w"
 
-
-def create_subregion_corner_lists(corners, central_point, ensurePositive=True):
-    clon, clat = central_point
+def create_subregion_corner_lists(corners,central_point,ensurePositive=True):
+    clon,clat = central_point
     # split into 4 subregions, copy deepest list
     corner_list = []
     # ll
@@ -127,10 +127,10 @@ def _create_grid(corners, x0, y0, dmlon, dmlat, which_dem, tol):
     if np.round(delta_lon / dmlon, tol) > 1 or np.round(delta_lon / dmlon, tol) < 0:
         raise RuntimeError(ex0 + nx * dmlon, corners[2][0])
 
-    elon = ex0 + (np.arange(nx) + 0.5) * dmlon
-    if which_dem == "ASTER":
+    elon = ex0 + (np.arange(nx)+0.5)*dmlon
+    if which_dem in ["ASTER","FAB"]:
         elon[elon >= 360] -= 360
-    elif which_dem != "MERIT":
+    elif which_dem not in ["MERIT"]:
         raise RuntimeError(f"Unrecognized DEM: {which_dem}")
 
     # bottom
@@ -206,12 +206,12 @@ def _get_MERIT_dem_filenames(dem_file_template, corners):
             tlat = int((latc // mres) * mres)
 
             abstlon = abs(tlon)
-            lonstr = "{:03d}".format(abstlon)
-            lonstr = _east_or_west(tlon) + lonstr
+            lonstr  = '{:03d}'.format(abstlon)
+            lonstr = east_or_west(tlon)+lonstr
 
             abstlat = abs(tlat)
-            latstr = "{:02d}".format(abstlat)
-            latstr = _north_or_south(tlat) + latstr
+            latstr  = '{:02d}'.format(abstlat)
+            latstr = north_or_south(tlat)+latstr
 
             tiletag = latstr + lonstr
 
@@ -224,7 +224,8 @@ def _get_MERIT_dem_filenames(dem_file_template, corners):
             abstlat = abs(dir_tlat)
             latstr = "{:02d}".format(abstlat)
 
-            dirtag = _north_or_south(tlat) + latstr + _east_or_west(tlon) + lonstr
+            dirtag = north_or_south(tlat)+latstr \
+                     +east_or_west(tlon)+lonstr
 
             efile = dem_file_template.replace("DirTag", dirtag)
             efiles.append(efile.replace("TileTag", tiletag))
@@ -348,15 +349,11 @@ def _get_ASTER_dem_filenames(dem_file_template, corners):
 
     # round to correct numbers that are just slightly less than integer
     sigfigs = 6
-    ll_corner = [np.round(corners[0][0], sigfigs), np.round(corners[0][1], sigfigs)]
-    ur_corner = [np.round(corners[-1][0], sigfigs), np.round(corners[-1][1], sigfigs)]
+    ll_corner = [np.round(corners[0][0],sigfigs),np.round(corners[0][1],sigfigs)]
+    ur_corner = [np.round(corners[-1][0],sigfigs),np.round(corners[-1][1],sigfigs)]
 
-    lonmin, lonmax = int((ll_corner[0] // ares) * ares), int(
-        (ur_corner[0] // ares) * ares
-    )
-    latmin, latmax = int((ll_corner[1] // ares) * ares), int(
-        (ur_corner[1] // ares) * ares
-    )
+    lonmin, lonmax = int((ll_corner[0]//ares)*ares), int((ur_corner[0]//ares)*ares)
+    latmin, latmax = int((ll_corner[1]//ares)*ares), int((ur_corner[1]//ares)*ares)
 
     # if right boundary is multiple of tile resolution, exclude it
     if (ur_corner[0] - lonmax) == 0.0:
@@ -373,25 +370,25 @@ def _get_ASTER_dem_filenames(dem_file_template, corners):
     if lonmax < lonmin:
         lonmax += 360
 
-    nlon = lonmin + np.arange((lonmax - lonmin) // ares + lnpad) * ares
-    nlat = latmin + np.arange((latmax - latmin) // ares + ltpad) * ares
+    nlon = lonmin + np.arange((lonmax - lonmin)//ares + lnpad)*ares
+    nlat = latmin + np.arange((latmax - latmin)//ares + ltpad)*ares
 
     efiles = []
     for lonc in nlon:
         for latc in nlat:
 
-            tlon = int((lonc // ares) * ares)
+            tlon = int((lonc//ares)*ares)
             if tlon >= 180:
                 tlon -= 360
             tlat = int((latc // ares) * ares)
 
             abstlon = abs(tlon)
-            lonstr = "{:03d}".format(abstlon)
-            lonstr = _east_or_west(tlon) + lonstr
+            lonstr  = '{:03d}'.format(abstlon)
+            lonstr = east_or_west(tlon)+lonstr
 
             abstlat = abs(tlat)
-            latstr = "{:02d}".format(abstlat)
-            latstr = _north_or_south(tlat) + latstr
+            latstr  = '{:02d}'.format(abstlat)
+            latstr = north_or_south(tlat)+latstr
 
             tiletag = latstr + lonstr
 
@@ -414,14 +411,14 @@ def read_ASTER_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
 
     # Check for unneeded files (corner < 1 pixel from boundary)
     sigfigs = 6
-    ll_corner = [np.round(corners[0][0], sigfigs), np.round(corners[0][1], sigfigs)]
-    ur_corner = [np.round(corners[-1][0], sigfigs), np.round(corners[-1][1], sigfigs)]
+    ll_corner = [np.round(corners[0][0],sigfigs),np.round(corners[0][1],sigfigs)]
+    ur_corner = [np.round(corners[-1][0],sigfigs),np.round(corners[-1][1],sigfigs)]
 
     if demfiles.size > 0:
         validDEM = True
     else:
         validDEM = False
-        return {"validDEM": validDEM}
+        return {'validDEM':validDEM}
 
     for nfile in range(demfiles.size):
         asterfile = demfiles[nfile]
@@ -525,3 +522,163 @@ def read_ASTER_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
         "affine": affine,
         "validDEM": validDEM,
     }
+
+def _get_FAB_dem_filenames(dem_file_template,corners):
+    # dem_file_template is assumed to have form of:
+        # 'my_path/data/TileTag_FABDEM_V1-2.tif'
+
+    # tiles are 1 x 1 degree
+    ares = 1
+
+    # round to correct numbers that are just slightly less than integer
+    sigfigs = 6
+    ll_corner = [np.round(corners[0][0],sigfigs),np.round(corners[0][1],sigfigs)]
+    ur_corner = [np.round(corners[-1][0],sigfigs),np.round(corners[-1][1],sigfigs)]
+
+    lonmin, lonmax = int((ll_corner[0]//ares)*ares), int((ur_corner[0]//ares)*ares)
+    latmin, latmax = int((ll_corner[1]//ares)*ares), int((ur_corner[1]//ares)*ares)
+
+    # if right boundary is multiple of tile resolution, exclude it
+    if (ur_corner[0]-lonmax) == 0.0:
+        lnpad = 0
+    else:
+        lnpad = 1
+    # if upper boundary is multiple of tile resolution, exclude it
+    if (ur_corner[1]-latmax) == 0.0:
+        ltpad = 0
+    else:
+        ltpad = 1
+
+    # ensure lonmax > lonmin for regions spanning prime meridian
+    if lonmax < lonmin:
+        lonmax += 360
+
+    nlon = lonmin + np.arange((lonmax - lonmin)//ares + lnpad)*ares
+    nlat = latmin + np.arange((latmax - latmin)//ares + ltpad)*ares
+
+    efiles = []
+    for lonc in nlon:
+        for latc in nlat:
+
+            tlon = int((lonc//ares)*ares)
+            if tlon >= 180:
+                tlon -= 360
+            tlat = int((latc//ares)*ares)
+
+            lonstr = f'{east_or_west(tlon)}{abs(tlon):03d}'
+            latstr = f'{north_or_south(tlat)}{abs(tlat):02d}'
+            tiletag = f'{latstr}{lonstr}'
+
+            efiles.append(dem_file_template.replace('TileTag',tiletag.upper()))
+
+    # get unique values
+    efiles = np.unique(np.asarray(efiles))
+    numfiles = efiles.size
+
+    # check that all files exist (call returns 0)
+    # (corners may extend beyond existing dem tiles)
+    #efiles = _check_files_exist(dem_file_template, efiles)
+    # check that all files exist (call returns 0)
+    # (corners may extend beyond existing dem tiles)
+    emask = np.ones(efiles.size, dtype=bool)
+    for n in range(efiles.size):
+        geofile = efiles[n]
+        command=['ls',geofile]
+        file_exists=subprocess.run(command,capture_output=True).returncode
+        if file_exists > 0:
+            emask[n] = False
+    efiles = efiles[emask]
+
+    return efiles
+
+def read_FAB_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
+    # Determine dem filenames
+    demfiles = _get_FAB_dem_filenames(dem_file_template,corners)
+
+    # Check for unneeded files (corner < 1 pixel from boundary)
+    sigfigs = 6
+    ll_corner = [np.round(corners[0][0],sigfigs),np.round(corners[0][1],sigfigs)]
+    ur_corner = [np.round(corners[-1][0],sigfigs),np.round(corners[-1][1],sigfigs)]
+
+    if demfiles.size > 0:
+        validDEM = True
+    else:
+        validDEM = False
+        return {'validDEM':validDEM}
+
+    for nfile in range(demfiles.size):
+
+        demfile  = demfiles[nfile]
+        ds = gd.Open(demfile)
+        if nfile==0:
+            crs = pyproj.Proj(ds.GetProjection(), preserve_units=True)
+            # reorder geotransform to affine convention
+            aff = [float(ds.GetGeoTransform()[i]) for i in [1,2,0,4,5,3]]
+            affine = rasterio.Affine(*aff)
+
+        # latitude is N->S
+        fab_dem_elev = ds.ReadAsArray()
+        xs = ds.RasterXSize
+        ys = ds.RasterYSize
+        x  = ds.GetGeoTransform()
+        x0, y0, dx, dy = x[0], x[3], x[1], x[5]
+        # convert longitude to [0,360]
+        if x0 < 0:
+            x0 += 360
+        # coordinates of center of pixel
+        mlon = (x0+0.5*dx) + dx*np.arange(xs)
+        mlat = (y0+0.5*dy) + dy*np.arange(ys)
+
+        dmlon = np.abs(mlon[0]-mlon[1])
+        dmlat = np.abs(mlat[0]-mlat[1])
+
+        # convert latitude to S->N
+        mlat = np.flipud(mlat)
+        fab_dem_elev = np.flipud(fab_dem_elev)
+
+        fill_value = -9999
+        if zeroFill:
+            fab_dem_elev[fab_dem_elev <= fill_value] = 0
+
+        # create grid that will be filled sequentially by dem files
+        if nfile==0:
+            elon, elat, elev = _create_grid(corners, x0, y0, dmlon, dmlat, "FAB", tol)
+
+        # locate dem tile within grid
+
+        # use arg_closest_point() to compare in single precision
+        i1 = arg_closest_point(elon[0],  mlon, angular=True)
+        i2 = arg_closest_point(elon[-1], mlon, angular=True)
+        i3 = arg_closest_point(mlon[i1], elon, angular=True)
+        i4 = arg_closest_point(mlon[i2], elon, angular=True)
+
+        j1 = arg_closest_point(elat[0],  mlat)
+        j2 = arg_closest_point(elat[-1], mlat)
+        j3 = arg_closest_point(mlat[j1], elat)
+        j4 = arg_closest_point(mlat[j2], elat)
+
+        if np.abs(np.mean(elon[i3:i4+1]-mlon[i1:i2+1])) > 1e-10:
+            print(np.mean(elon[i3:i4+1]-mlon[i1:i2+1]))
+            print(elon[i3:i4+1][:10])
+            #raise RuntimeError(mlon[i1:i2+1][:10])
+
+        if np.abs(np.mean(elat[j3:j4+1]-mlat[j1:j2+1])) > 1e-10:
+            print(np.mean(elat[j3:j4+1]-mlat[j1:j2+1]))
+            print(elat[j3:j4+1][:10])
+            #raise RuntimeError(mlat[j1:j2+1][:10])
+
+        elev[j3:j4+1,i3:i4+1] = fab_dem_elev[j1:j2+1,i1:i2+1]
+
+    # Adjust affine to represent actual elev bounds
+    # x0,y0 should be top left pixel of raster
+    dx, dy = affine.a, affine.e
+    x0, y0 = elon[0]-0.5*np.abs(dx), elat[-1]+0.5*np.abs(dy)
+    affine = rasterio.Affine(affine.a,affine.b,x0,affine.d,affine.e,y0)
+
+    # for grids spanning greenwich
+    elon[elon >= 360] -= 360
+    # to match affine, convert latitude back to N->S
+    elat = np.flipud(elat)
+    elev = np.flipud(elev)
+
+    return {'elev':elev,'lon':elon,'lat':elat,'crs':crs,'affine':affine,'validDEM':validDEM}

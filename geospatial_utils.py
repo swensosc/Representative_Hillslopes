@@ -4,6 +4,8 @@ from rh_logging import info, warning, error, debug
 """
 routines for modifying geospatial data
 
+north_or_south:         return 'n'/'s' label
+east_or_west:           return 'e'/'w' label
 smooth_2d_array:        smooth a 2d array
 fit_planar_surface:     fit a planar surface to a 2d array
 blend_edges:            blend the edges of a 2d array
@@ -13,7 +15,7 @@ std_dev:                standard deviation
 quadratic:              return a solution of a quadratic equation
 _four_point_laplacian:  calculate laplacian using four neighboring points
 _inside_indices_buffer: return indices excluding those in a buffer around array edges
-_expand_mask_buffer:     expand a mask spatially
+_expand_mask_buffer:    expand a mask spatially
 
 """
 
@@ -26,11 +28,21 @@ re = 6.371e6
 
 # function definitions
 
+def north_or_south(lat):
+    if lat >= 0:
+        return 'n'
+    else:
+        return 's'
+def east_or_west(lon):
+    if lon >= 0:
+        return 'e'
+    else:
+        return 'w'
 
-def smooth_2d_array(elev, land_frac=1, scalar=1):
-    hw = scalar / (land_frac**2 * np.min(elev.shape))
-    elev_fft = np.fft.rfft2(elev, norm="ortho")
-    ny, nx = elev_fft.shape
+def smooth_2d_array(elev,land_frac=1,scalar=1):
+    hw = scalar/(land_frac**2*np.min(elev.shape))
+    elev_fft = np.fft.rfft2(elev,norm='ortho')
+    ny,nx = elev_fft.shape
     rowfreq = np.fft.fftfreq(elev.shape[0])
     colfreq = np.fft.rfftfreq(elev.shape[1])
     radialfreq = np.sqrt(
@@ -151,7 +163,6 @@ def calc_gradient(z, lon, lat, method="Horn1981"):
 
 def std_dev(x):
     return np.power(np.mean(np.power((x - np.mean(x)), 2)), 0.5)
-
 
 def quadratic(coefs, root=0, eps=1e-6):
     ak, bk, ck = coefs
