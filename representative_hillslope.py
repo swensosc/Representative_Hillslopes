@@ -14,6 +14,7 @@ from dem_io import (
     create_subregion_corner_lists,
     read_MERIT_dem_data,
     read_ASTER_dem_data,
+    read_FAB_dem_data,
 )
 from terrain_utils import (
     SpecifyHandBounds,
@@ -1469,6 +1470,8 @@ class LandscapeCharacteristics(object):
             x = read_MERIT_dem_data(dem_file_template, corners, zeroFill=True)
         if dem_source == "ASTER":
             x = read_ASTER_dem_data(dem_file_template, corners, zeroFill=True)
+        if dem_source == "FAB":
+            x = read_FAB_dem_data(dem_file_template, corners, zeroFill=True)
 
         if not x["validDEM"]:
             return -1
