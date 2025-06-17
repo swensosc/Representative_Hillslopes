@@ -1,7 +1,3 @@
-# README for `Representative_Hillslopes` shell scripts
-Sam S. Rabin (samrabin@ucar.edu)
-2024-04-23
-
 ## `hand_analysis_loop.sh`
 
 This script performs the Height Above Nearest Drainage (HAND) analysis for each gridcell. It breaks the analysis into a number of chunks---by default, 36---to enable parallel processing using batch submission scripts. Do
@@ -22,7 +18,7 @@ This script calls the Python script that does the analysis for one "chunk". `han
 Your machine may need some additional code to be called before calling the HAND analysis Python script. You can put this in `1chunk_preamble.sh`, which will not be tracked by git.
 
 ## Example
-These scripts were tested on NSF NCAR's Casper machine like so (bash):
+These scripts were tested on NSF NCAR's Casper machine like so (bash). The analysis takes a long time---indeed, even with 12 hours of walltime, some of the chunks may not complete. (You can check if a chunk has completed by checking for its `done_` file in `$outdir`.) If that's the case, you can rerun this code as many times as needed, and the chunks that haven't completed will start where they left off.
 
 ```bash
 # Preamble for submitting a PBS job. Note "echo echo".
@@ -39,4 +35,3 @@ outdir="$SCRATCH/hillslope_script_testing/hand_analysis_1deg"
 # Call script
 ./hand_analysis_loop.sh $fsurdat $demdata $outdir
 ```
-      
