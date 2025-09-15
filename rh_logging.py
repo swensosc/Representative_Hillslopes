@@ -8,7 +8,7 @@ printFlush = True
 def config_logger(logfile):
     logging.basicConfig(
         filename=logfile,
-        encoding="utf-8",
+        #encoding="utf-8",
         filemode="w",
         format="{asctime} - {levelname} - {message}",
         style="{",

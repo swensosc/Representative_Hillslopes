@@ -191,6 +191,8 @@ def set_aspect_to_hillslope_mean_parallel(
         pool1 = Pool(npools)
 
     try:
+        l1 = np.isfinite(aspect.flat)
+
         # chunk data to reduce cost of array searches (i.e. np.where)
         nchunks = int(np.max([1, int(uid.size // chunksize)]))
         chunksize = np.min([chunksize, uid.size - 1])
@@ -199,12 +201,12 @@ def set_aspect_to_hillslope_mean_parallel(
             if n == nchunks - 1:
                 n2 = uid.size - 1
             if n1 == n2:  # single drainage case
-                cind = np.where(drainage_id.flat == uid[n1])[0]
+                cind = np.where(np.logical_and(l1,drainage_id.flat == uid[n1]))[0]
             else:
                 cind = np.where(
-                    np.logical_and(
+                    np.logical_and.reduce((l1,
                         drainage_id.flat >= uid[n1], drainage_id.flat < uid[n2]
-                    )
+                    ))
                 )[0]
 
             x = pool1.map(
@@ -223,6 +225,7 @@ def set_aspect_to_hillslope_mean_parallel(
                     if len(tmp) > 0:
                         _, mean_aspect, ind = tmp[1:]
                         aspect2d_catchment_mean.flat[cind[ind]] = mean_aspect
+
     finally:
         pool1.close()
         pool1.join()
@@ -237,6 +240,8 @@ def set_aspect_to_hillslope_mean_serial(drainage_id, aspect, hillslope, chunksiz
 
     aspect2d_catchment_mean = np.zeros(aspect.shape)
 
+    l1 = np.isfinite(aspect.flat)
+
     # chunk data to reduce cost of array searches (i.e. np.where)
     nchunks = int(np.max([1, int(uid.size // chunksize)]))
     chunksize = np.min([chunksize, uid.size - 1])
@@ -245,10 +250,10 @@ def set_aspect_to_hillslope_mean_serial(drainage_id, aspect, hillslope, chunksiz
         if n == nchunks - 1:
             n2 = uid.size - 1
         if n1 == n2:  # single drainage case
-            cind = np.where(drainage_id.flat == uid[n1])[0]
+            cind = np.where(np.logical_and(l1,drainage_id.flat == uid[n1]))[0]
         else:
             cind = np.where(
-                np.logical_and(drainage_id.flat >= uid[n1], drainage_id.flat < uid[n2])
+                np.logical_and.reduce((l1,drainage_id.flat >= uid[n1], drainage_id.flat < uid[n2]))
             )[0]
 
         # search a subset of array in each chunk

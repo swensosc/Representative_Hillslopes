@@ -16,6 +16,8 @@ quadratic:              return a solution of a quadratic equation
 _four_point_laplacian:  calculate laplacian using four neighboring points
 _inside_indices_buffer: return indices excluding those in a buffer around array edges
 _expand_mask_buffer:    expand a mask spatially
+identify_basins:        identify flat areas in dem
+identify_open_water:    identify open water areas in dem (e.g. ponds, lakes, oceans)
 
 """
 
@@ -71,7 +73,6 @@ def fit_planar_surface(elev, elon, elat):
 
     elev_planar = elat2d * coefs[0] + elon2d * coefs[1] + coefs[2]
     return elev_planar
-
 
 def blend_edges(ifld, n=10):
     fld = np.copy(ifld)
@@ -182,6 +183,7 @@ def quadratic(coefs, root=0, eps=1e-6):
         (-bk + np.sqrt(bk**2 - 4 * ak * ck)) / (2 * ak),
         (-bk - np.sqrt(bk**2 - 4 * ak * ck)) / (2 * ak),
     ]
+
     debug("quadratic roots ", dm_roots)
     return dm_roots[root]
 
@@ -250,15 +252,25 @@ def _expand_mask_buffer(mask, buf=1):
 
     return omask
 
+def erode_dilate_mask(mask,buf=1,niter=10):
+    x = np.copy(mask)
+    for _ in range(niter):   # erode
+        x = 1 - _expand_mask_buffer(1-x,buf=buf)
+    for _ in range(niter+1): # dilate
+        x = _expand_mask_buffer(x,buf=buf)
+    return np.where(np.logical_and(x>0,mask>0),1,0)
 
-def identify_basins(dem, basin_thresh=0.25, niter=10, buf=1):
+def identify_basins(dem, basin_thresh=0.25, niter=10, buf=1, nodata=None):
     # create basin mask, 1 in basin, 0 outside of basin
     # flat areas often have large dtnd and small hand values
     # due to flowpaths in flooded/inflated part of dem
     imask = np.zeros(dem.shape)
 
     # find most common elevation value
-    udem, ucnt = np.unique(dem, return_counts=True)
+    if type(nodata) != type(None):
+        udem, ucnt = np.unique(dem[dem != nodata], return_counts=True)
+    else:
+        udem, ucnt = np.unique(dem, return_counts=True)
     ufrac = ucnt / dem.size
     ind = np.where(ufrac > basin_thresh)[0]
 
@@ -280,5 +292,14 @@ def identify_basins(dem, basin_thresh=0.25, niter=10, buf=1):
                 if np.abs(udem[i]) < eps:
                     eps = 1e-6
                 imask[_four_point_laplacian(1 - imask) >= 3] = 0
-
+                
     return imask
+
+def identify_open_water(slope, max_slope=1e-4, niter=15):
+    # create open water mask
+    basin_mask = erode_dilate_mask(np.where(slope < max_slope,1,0),niter=niter)
+    # need buf=2 to capture corners properly
+    sup_basin_mask = _expand_mask_buffer(basin_mask,buf=2)
+    basin_boundary = sup_basin_mask-basin_mask
+    
+    return [basin_boundary, basin_mask]

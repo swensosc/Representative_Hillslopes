@@ -8,7 +8,7 @@ import numpy as np
 import netCDF4 as netcdf4
 import rasterio
 
-from geospatial_utils import quadratic, arg_closest_point, identify_basins
+from geospatial_utils import quadratic, arg_closest_point, identify_basins, identify_open_water
 from spatial_scale import IdentifySpatialScaleLaplacian
 from dem_io import (
     create_subregion_corner_lists,
@@ -24,8 +24,13 @@ from terrain_utils import (
 )
 from rh_logging import info, warning, error, debug, logger_level_debug
 
-sys.path.append("pysheds")
-from pysheds.pgrid import Grid
+#sys.path.append("pysheds")
+#from pysheds.sgrid import Grid
+
+sys.path.append('/project/tss/swensosc/pylibs/pysheds/pysheds/')
+#from sgrid import Grid
+# name conflict
+from sgrid import sGrid as Grid
 
 """
 LandscapeCharacteristics: class for landscape terrain characteristics derived from digital elevation model.
@@ -51,6 +56,9 @@ def calc_width_parameters(
 ):
     if form not in ["trapezoid", "annular"]:
         raise RuntimeError("form must be one of: ", ["trapezoid", "annular"])
+
+    if np.max(dtnd) < mindtnd:
+        raise ValueError("max dtnd value less then minimum dtnd criterion")
 
     dtndbins = np.linspace(mindtnd, np.max(dtnd) + 1, nhisto + 1)
     binwidth = dtndbins[1:] - dtndbins[:-1]
@@ -339,10 +347,10 @@ def CalcGeoparamsGridcell(
     aspect_bins=None,
     ncolumns_per_gridcell=None,
     maxHillslopeLength=None,
+    dem_reader=None,
     dem_file_template=None,
     detrendElevation=None,
     nlambda=None,
-    dem_source=None,
     outfile_template=None,
     overwrite=False,
     flagBasins=False,
@@ -425,7 +433,7 @@ def CalcGeoparamsGridcell(
             dem_file_template=dem_file_template,
             detrendElevation=detrendElevation,
             nlambda=nlambda,
-            dem_source=dem_source,
+            dem_reader=dem_reader,
         )
 
         if not x["validDEM"]:
@@ -513,8 +521,7 @@ def CalcGeoparamsGridcell(
                 accum_thresh=accum_thresh,
                 dem_file_template=dem_file_template,
                 useMultiProcessing=useMultiProcessing,
-                dem_source=dem_source,
-                maskFlooded=False,
+                dem_reader=dem_reader,
             )
 
             # if no valid data, skip to next subregion
@@ -1451,13 +1458,12 @@ class LandscapeCharacteristics(object):
         self,
         corners,
         accum_thresh=0,
+        dem_reader=None,
         dem_file_template=None,
-        fill_value=-9999,
+        fill_value=np.nan,
         useConsistentChannelMask=True,
         useMultiProcessing=True,
         npools=4,
-        dem_source="MERIT",
-        maskFlooded=True,
         pshape=None,
     ):
 
@@ -1466,12 +1472,7 @@ class LandscapeCharacteristics(object):
         if type(dem_file_template) == type(None):
             raise RuntimeError("no dem file template supplied")
 
-        if dem_source == "MERIT":
-            x = read_MERIT_dem_data(dem_file_template, corners, zeroFill=True)
-        if dem_source == "ASTER":
-            x = read_ASTER_dem_data(dem_file_template, corners, zeroFill=True)
-        if dem_source == "FAB":
-            x = read_FAB_dem_data(dem_file_template, corners, zeroFill=True)
+        x = dem_reader(dem_file_template, corners, zeroFill=True)
 
         if not x["validDEM"]:
             return -1
@@ -1510,20 +1511,23 @@ class LandscapeCharacteristics(object):
         # lf_thresh = 0.75
         # if land_fraction <= lf_thresh:
         #    elev[np.abs(elev) < eps] = fill_value
-        basin_mask = identify_basins(elev)
+        basin_mask = identify_basins(elev,nodata=fill_value)
+        land_fraction = np.sum(np.where(basin_mask < 1, 1, 0)) / basin_mask.size
+        if land_fraction <= min_land_fraction:
+            warning("skipping; land fraction too small ", land_fraction)
+            return -1
         elev[basin_mask > 0] = fill_value
 
         # ---  Create pysheds Grid object  -----------------------------
         grid = Grid.from_array(
             data=elev,
-            data_name="dem",
             affine=eaffine,
-            shape=elev.shape,
             crs=ecrs,
             nodata=fill_value,
             metadata={},
         )
-
+        dem = grid.add_gridded_data(data=elev, affine=eaffine, crs=ecrs)
+        
         # ---  Calculate geographic coordinates  -----------------------
         x = grid.affine
         debug("grid affine ", x.a, x.b, x.c, x.d, x.e, x.f)
@@ -1535,14 +1539,20 @@ class LandscapeCharacteristics(object):
         lat = (y0 + 0.5 * dy) + dy * np.arange(ys)
         jm, im = lat.size, lon.size
 
-        # ---  Fill depressions and resolve flats in the DEM  --------------
-        grid.fill_depressions("dem", out_name="flooded_dem", nodata_in=fill_value)
+        # ---  Fill depressions and resolve flats in the DEM  ----------
+        pit_filled_dem = grid.fill_pits(dem)
+        flooded_dem = grid.fill_depressions(pit_filled_dem)
+
+        # --- Locate and flood lakes/ponds  ----------------------------
+        slope, _ = grid.slope_aspect(dem)
+        basin_boundary, basin_mask = identify_open_water(slope)
+        flooded_dem[basin_mask>0] -= 0.1
 
         debug("depressions filled")
 
         # Ignore dems with only one point
-        s1 = np.sum(np.where(grid.dem > 0, 1, 0))
-        s2 = np.sum(np.where(grid.flooded_dem > 0, 1, 0))
+        s1 = np.sum(np.where(dem > 0, 1, 0))
+        s2 = np.sum(np.where(flooded_dem > 0, 1, 0))
         if np.logical_or(s1 <= 1, s2 <= 1):
             info("no dem, no flooded ", s1, s2)
             info("skipping")
@@ -1550,44 +1560,11 @@ class LandscapeCharacteristics(object):
 
         # Resolve flats in DEM
         try:
-            grid.resolve_flats(
-                "flooded_dem", out_name="inflated_dem", nodata_in=fill_value
-            )
+            inflated_dem = grid.resolve_flats(flooded_dem)
             debug("flats resolved")
         except ValueError:
             warning("flats cannot be resolved")
-            grid.add_gridded_data(grid.dem, "inflated_dem", nodata=fill_value)
-
-        # Set flat areas to fill_value
-        # identify flooded regions in lowest hand bin
-        fflood = np.abs(np.asarray(grid.flooded_dem - grid.dem))
-        num_flooded_pts = np.sum((fflood > 0))
-        flat_mask = np.zeros(grid.dem.shape)
-        if maskFlooded:
-            if num_flooded_pts > 0:
-                debug("total flooded fraction ", num_flooded_pts / grid.dem.size)
-                # determine threshold for cells to be excluded
-                flood_thresh = 0
-                # fraction of flood mask to remove
-                ffraction = 0.95
-                # when frac_below_ft is greater than ffraction, save value
-                for ft in np.linspace(0, 20, 50):
-                    frac_below_ft = (
-                        np.sum((np.abs(fflood[fflood > 0]) < ft)) / num_flooded_pts
-                    )
-                    if frac_below_ft > ffraction:
-                        flood_thresh = ft
-                        break
-                debug("flood threshold ", flood_thresh)
-                # exclude regions that have been flooded
-                flat_mask = np.where(np.abs(fflood) > flood_thresh, 1, 0)
-            else:
-                debug("no flooded points")
-                pass
-
-        grid.dem[flat_mask > 0] = fill_value
-        grid.flooded_dem[flat_mask > 0] = fill_value
-        grid.inflated_dem[flat_mask > 0] = fill_value
+            inflated_dem = grid.add_gridded_data(dem)
 
         # ---  Define directional map  ---------------------------------
 
@@ -1598,43 +1575,39 @@ class LandscapeCharacteristics(object):
 
         # ---  Compute flow directions from DEM
         # extract_profiles cannot handle missing data, so do not use nodata_out
-        grid.flowdir(
-            data="inflated_dem", out_name="dir", dirmap=dirmap, nodata_in=fill_value
-        )
+        fdir = grid.flowdir(inflated_dem,dirmap=dirmap)
         debug("flow directions computed")
 
-        # ---  Calculate flow accumulation using direction map
+        # After directions calculated, remove basin cells
+        flooded_dem[basin_mask>0] = fill_value
+        inflated_dem[basin_mask>0] = fill_value
 
         # Calculate flow accumulation (input data is flow direction) #
-        grid.accumulation(data="dir", dirmap=dirmap, out_name="acc")
+        acc = grid.accumulation(fdir, dirmap=dirmap)
         debug("accumulation calculated")
 
-        grid.slope_aspect(dem="dem")
+        # Ensure flooded areas included in acc_mask for hand calculation
+        acc[basin_boundary > 0] = accum_thresh+1
+
+        # Calculate slope and aspect
+        slope, aspect = grid.slope_aspect(dem)
         debug("slope/aspect calculated")
-
-        # --- check for flat areas (e.g. lakes) that were not considered flooded
-        slope_threshold = 1e-5
-        fflood = np.where(grid.view("slope") < slope_threshold, 1, 0)
-
-        # ---  Calculate stream network
-        dir_raster = grid.view("dir")
-        acc_raster = grid.view("acc")
-
+        
         # adjust threshold if max(accumulation) is smaller than accum_thresh
-        if np.max(grid.acc) > accum_thresh:
+        if np.max(acc) > accum_thresh:
             self.thresh = accum_thresh
         else:
-            self.thresh = np.max(grid.acc) / 100
+            self.thresh = np.max(acc) / 100
             debug("new thresh: ", self.thresh)
 
         # create mask of accumulation values above thresh, where dem is valid
         acc_mask = np.logical_and(
-            (acc_raster > self.thresh), (grid.inflated_dem != fill_value)
+            (acc > self.thresh), np.isfinite(inflated_dem)
         )
 
         try:
             branches = grid.extract_river_network(
-                fdir=dir_raster, mask=acc_mask, dirmap=dirmap
+                fdir=fdir, mask=acc_mask, dirmap=dirmap
             )
         except MemoryError:
             warning("Memory Error in extract_river_network, skipping")
@@ -1680,9 +1653,11 @@ class LandscapeCharacteristics(object):
             latdir = "north_to_south"
 
         try:
-            debug("calling grid.river_network_length_and_slope()")
-            x = grid.river_network_length_and_slope(
-                fdir=dir_raster, mask=acc_mask, dirmap=dirmap
+            debug("calling river_network_length_and_slope")
+            # the loop over profiles may take a long time...
+            x = grid.river_network_length_and_slope(dem=inflated_dem, 
+                                                    fdir=fdir, acc=acc,
+                                                    mask=acc_mask, dirmap=dirmap
             )
         except MemoryError:
             warning("Memory Error in river_network_length_and_slope, skipping")
@@ -1701,57 +1676,31 @@ class LandscapeCharacteristics(object):
         debug("network length ", self.network_length)
 
         # add stream channel mask and initial stream channel id to grid object
-        if useConsistentChannelMask:
-            grid.create_channel_mask(fdir=dir_raster, mask=acc_mask, dirmap=dirmap)
-
-            debug("channel mask and id created")
-
-        else:
-            # use channel network to define mask
-            dmask = np.zeros((jm, im))
-            # initialize drainage id of each pixel in the stream network and create a mask
-            did = np.zeros((jm, im))
-            # use clipped stream network
-            for n in range(nreach):
-                ni = np.argmin(np.abs(network[n, 0] - lon))
-                nj = np.argmin(np.abs(network[n, 1] - lat))
-                dmask[nj, ni] = 1
-                did[nj, ni] = stream_id[n]
-
-            grid.add_gridded_data(
-                np.asarray(dmask), "channel_mask", affine=grid.affine, crs=grid.crs
-            )
-            grid.add_gridded_data(
-                np.asarray(did), "channel_id", affine=grid.affine, crs=grid.crs
-            )
+        channel_mask, channel_id, bank_mask = grid.create_channel_mask(fdir, mask=acc_mask, dirmap=dirmap)
 
         # calculate hand and new methods (distance to nearest drainage "dtnd" and angle wrt nearest drainage)
         # the compute_hand method also assigns a drainage id to all pixels
         # default nodata_out = NaN
 
-        grid.compute_hand(
-            fdir="dir",
-            dem="inflated_dem",
-            channel_mask="channel_mask",
-            channel_id="channel_id",
-            out_name="hand",
-            dirmap=dirmap,
-            nodata_in_dem=fill_value,
-        )
-
-        self.channel_mask = grid.channel_mask
+        hand, dtnd, drainage_id = grid.compute_hand(fdir, inflated_dem, channel_mask, channel_id, dirmap=dirmap)
+        
+        self.channel_mask = channel_mask
 
         debug("hand calculated")
 
-        # self.dem    = np.asarray(grid.view('dem'))
-        self.hand   = np.asarray(grid.view("hand"))
-        self.dtnd   = np.asarray(grid.view("dtnd"))
-        self.aspect = np.asarray(grid.view("aspect"))
-        self.slope  = np.asarray(grid.view("slope"))
-        self.aznd   = np.asarray(grid.view("aznd"))
-        self.accum  = np.asarray(grid.view("acc"))
-        self.drainage_id = np.asarray(grid.view("drainage_id"))
-        self.fflood = fflood
+        # hillslopes will be 1:headwater, 2:right bank, 3: left bank, 4: channel
+        hillslope = grid.compute_hillslope(fdir, channel_mask, bank_mask) 
+        hillslope = np.asarray(hillslope[:,])
+        
+        # self.dem    = np.asarray(dem)
+        self.hand   = np.asarray(hand)
+        self.dtnd   = np.asarray(dtnd)
+        self.aspect = np.asarray(aspect)
+        self.slope  = np.asarray(slope)
+        self.accum  = np.asarray(acc)
+        self.drainage_id = np.asarray(drainage_id)
+        self.fflood = basin_mask
+        self.hillslope = hillslope
         lon[lon >= 360] -= 360
         self.lon = lon
         self.lat = lat
@@ -1764,23 +1713,6 @@ class LandscapeCharacteristics(object):
         dth = np.abs(th[0] - th[1])
         farea = np.tile(np.sin(th), (im, 1)).T
         self.area = farea * dth * dphi * np.power(re, 2)
-
-        # hillslopes will be 1:headwater, 2:right bank, 3: left bank, 4: channel
-        grid.compute_hillslope(
-            fdir="dir", channel_mask="channel_mask", bank_mask="bank_mask"
-        )
-        self.hillslope = np.asarray(grid.view("hillslope"))
-
-        # create hillslope masks
-        hillmask = []
-        for k1 in range(1, 4):
-            hillmask.append(
-                np.where(
-                    np.logical_or(self.hillslope == 4, self.hillslope == k1),
-                    self.drainage_id,
-                    0,
-                )
-            )
 
         # convert aspect to hillslope mean values
         debug("averaging aspect across catchments")

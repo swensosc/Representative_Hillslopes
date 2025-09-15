@@ -9,6 +9,7 @@ import numpy as np
 import netCDF4 as netcdf4
 from numpy.random import default_rng
 
+from dem_io import read_MERIT_dem_data
 from representative_hillslope import CalcGeoparamsGridcell
 from rh_logging import config_logger, set_logger_level, info, warning, error, debug
 
@@ -56,14 +57,14 @@ parser.add_argument(
     help=f"Number of chunks to split processing into (default: {default_nchunks})",
 )
 
-dem_source_default = "MERIT"
+dem_reader_default = read_MERIT_dem_data
 dem_data_path_default = os.path.join("MERIT", "data")
 parser.add_argument(
-    "--dem-source",
-    "--dem_source",
+    "--dem-reader",
+    "--dem_reader",
     type=str,
-    default=dem_source_default,
-    help=f"DEM to use (default: {dem_source_default})",
+    default=dem_reader_default,
+    help=f"DEM reader to use (default: {dem_reader_default})",
 )
 parser.add_argument(
     "--dem-data-path",
@@ -129,6 +130,7 @@ if jobname is None or jobname == "STDIN":
     jobname = dt.now().strftime("%Y%m%d_%H%M%S")
 logfile = os.path.join(args.output_dir, "logs", f"chunk{chunkLabel}_{jobname}.log")
 print(logfile)
+#config_logger(logfile)
 config_logger(logfile)
 
 doTimer = args.timer
@@ -184,15 +186,15 @@ outfile_template = os.path.join(
     + f"_col_hillslope_geo_params_{args.hillslope_form}.nc",
 )
 
-# Select DEM source data
-if args.dem_source == "MERIT":
-    efile0 = os.path.join(args.dem_data_path, "elv_DirTag", "TileTag_elv.tif")
+# Select DEM reader
+if args.dem_reader == read_MERIT_dem_data:
+    dem_file_template = os.path.join(args.dem_data_path, "elv_DirTag", "TileTag_elv.tif")
     outfile_template = outfile_template.replace(".nc", "_MERIT.nc")
     info("\n")
-    info("dem template files: ", efile0)
+    info("dem template files: ", dem_file_template)
     info("\n")
 else:
-    raise ValueError(f"Invalid setting for --dem-source: {args.dem_source}")
+    raise ValueError(f"Invalid setting for --dem-source: {args.dem_reader}")
 
 info(f"Output filename template: {outfile_template}")
 
@@ -344,10 +346,10 @@ for index, k in enumerate(ji_pairs):
         ncolumns_per_gridcell=ncolumns_per_gridcell,
         maxHillslopeLength=maxHillslopeLength,
         hillslope_form=args.hillslope_form,
-        dem_file_template=efile0,
+        dem_file_template=dem_file_template,
         detrendElevation=args.detrendElevation,
         nlambda=nlambda,
-        dem_source=args.dem_source,
+        dem_reader=args.dem_reader,
         flagBasins=flagBasins,
         outfile_template=outfile_template,
         overwrite=args.overwrite,

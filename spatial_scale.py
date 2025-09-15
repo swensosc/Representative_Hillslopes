@@ -3,6 +3,7 @@ from scipy import optimize, signal
 
 from dem_io import read_MERIT_dem_data, read_ASTER_dem_data, read_FAB_dem_data
 from geospatial_utils import (
+    arg_closest_point,
     fit_planar_surface,
     smooth_2d_array,
     blend_edges,
@@ -512,12 +513,12 @@ def IdentifySpatialScaleLaplacian(
     maxHillslopeLength=0,
     land_threshold=0.75,
     min_land_elevation=0,
+    dem_reader=None,
     dem_file_template=None,
     detrendElevation=False,
     doBlendEdges=True,
     zeroEdges=True,
     nlambda=30,
-    dem_source="MERIT",
 ):
     """
     Identify the spatial scale at which the input DEM
@@ -533,15 +534,7 @@ def IdentifySpatialScaleLaplacian(
     if type(dem_file_template) == type(None):
         raise RuntimeError("no dem file template supplied")
 
-    if dem_source not in ['MERIT','ASTER','FAB']:
-        raise RuntimeError('invalid dem source ', dem_source)
-
-    if dem_source == 'MERIT':
-        x = read_MERIT_dem_data(dem_file_template,corners,zeroFill=True)
-    if dem_source == 'ASTER':
-        x = read_ASTER_dem_data(dem_file_template,corners,zeroFill=True)
-    if dem_source == 'FAB':
-        x = read_FAB_dem_data(dem_file_template,corners,zeroFill=True)
+    x = dem_reader(dem_file_template,corners,zeroFill=True)
     validDEM = x['validDEM']
 
     if not validDEM:
@@ -601,22 +594,17 @@ def IdentifySpatialScaleLaplacian(
                 corners[n][0] -= 360
 
         # Read in dem data spanning region defined by corners
-        if dem_source == 'MERIT':
-            x = read_MERIT_dem_data(dem_file_template,corners,zeroFill=True)
-        if dem_source == 'ASTER':
-            x = read_ASTER_dem_data(dem_file_template,corners,zeroFill=True)
-        if dem_source == 'FAB':
-            x = read_FAB_dem_data(dem_file_template,corners,zeroFill=True)
+        x = dem_reader(dem_file_template,corners,zeroFill=True)
         validDEM = x['validDEM']
 
         if validDEM:
             selev, selon, selat = x["elev"], x["lon"], x["lat"]
             sejm, seim = selev.shape
 
-            i1 = np.argmin(np.abs(selon - elon[0]))
-            i2 = np.argmin(np.abs(selon - elon[-1]))
-            j1 = np.argmin(np.abs(selat - elat[0]))
-            j2 = np.argmin(np.abs(selat - elat[-1]))
+            i1 = arg_closest_point(elon[0], selon, angular=True)
+            i2 = arg_closest_point(elon[-1],selon, angular=True)
+            j1 = arg_closest_point(elat[0], selat)
+            j2 = arg_closest_point(elat[-1],selat)
 
             smooth_elev = smooth_2d_array(selev, land_frac=land_frac)[
                 j1 : j2 + 1, i1 : i2 + 1
@@ -657,8 +645,7 @@ def IdentifySpatialScaleLaplacian(
     laplac_fft = np.fft.rfft2(laplac,norm='ortho')
     laplac_amp_fft = np.abs(laplac_fft)
 
-    if verbose:
-        print('DFTs calculated\n')
+    debug('DFTs calculated\n')
 
     # use appropriate (real/complex) routine for frequencies
     rowfreq = np.fft.fftfreq(ejm)
@@ -679,7 +666,7 @@ def IdentifySpatialScaleLaplacian(
     lambda_1d,laplac_amp_1d = x['lambda'],x['amp']
 
     # fit curve in window around fit_peaks
-    x = _LocatePeak(lambda_1d,laplac_amp_1d,maxWavelength=maxWavelength,verbose=verbose)
+    x = _LocatePeak(lambda_1d,laplac_amp_1d,maxWavelength=maxWavelength)
 
     model = x['model']
     spatialScale = x['spatialScale']
@@ -689,8 +676,7 @@ def IdentifySpatialScaleLaplacian(
     minWavelength = np.min(lambda_1d)
     spatialScale = np.max([spatialScale,minWavelength])
 
-    if verbose:
-        print('\nmodel, spatial scale, selection method: ', model, spatialScale, selection)
+    debug('\nmodel, spatial scale, selection method: ', model, spatialScale, selection)
 
     return {'model':model,'spatialScale':spatialScale,'selection':selection,'res':ares,'lambda_1d':lambda_1d,'laplac_amp_1d':laplac_amp_1d,'validDEM':validDEM}
 
