@@ -351,6 +351,7 @@ def SpecifyHandBounds(fhand, faspect, aspect_bins, bin1_max=2, BinMethod="fastso
         quartiles = np.asarray([0.25, 0.5, 0.75, 1.0])
         # if many zeros exist, both bins 0 and 1 may be equal to zero
         hand_sorted = np.sort(fhand[fhand > 0])
+
         hand_bin_bounds = np.asarray(
             [0]
             + [
@@ -362,9 +363,11 @@ def SpecifyHandBounds(fhand, faspect, aspect_bins, bin1_max=2, BinMethod="fastso
         # first bin must be <= bin1_max unless too few
         # points present in bin1_max bin
         if hand_bin_bounds[1] > bin1_max:
+
             # ensure enough points exist in the lowland bin
             # for each aspect bin
-            min_aspect_fraction = 0.01
+            min_aspect_fraction  = 0.1
+            min_lowland_fraction = 0.01
             for asp_ndx in range(len(aspect_bins)):
                 if asp_ndx == 0:
                     l1 = np.logical_or(
@@ -378,9 +381,9 @@ def SpecifyHandBounds(fhand, faspect, aspect_bins, bin1_max=2, BinMethod="fastso
                     )
 
                 hand_asp_sorted = np.sort(fhand[l1])
-                if hand_asp_sorted.size > 0:
+                if hand_asp_sorted.size/fhand.size > min_aspect_fraction:
                     bmin = hand_asp_sorted[
-                        int(min_aspect_fraction * hand_asp_sorted.size - 1)
+                        int(min_lowland_fraction * hand_asp_sorted.size - 1)
                     ]
                 else:
                     bmin = bin1_max

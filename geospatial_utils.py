@@ -64,12 +64,13 @@ def fit_planar_surface(elev, elon, elat):
     g[:, 0] = elat2d.flat
     g[:, 1] = elon2d.flat
     g[:, 2] = 1
-    gtd = np.dot(np.transpose(g), elev.flat)
-    gtg = np.dot(np.transpose(g), g)
+
+    gtd = np.matmul(np.transpose(g), elev.flat)
+    gtg = np.matmul(np.transpose(g), g)
     #  covm is the model covariance matrix
     covm = np.linalg.inv(gtg)
     #  coefs is the model parameter vector
-    coefs = np.dot(covm, gtd)
+    coefs = np.matmul(covm, gtd)
 
     elev_planar = elat2d * coefs[0] + elon2d * coefs[1] + coefs[2]
     return elev_planar

@@ -12,11 +12,11 @@ from rh_logging import info, warning, error, debug
 routines related to reading DEM data
 
 utilities
-_is_contained
-_locate_point
+_is_coord_contained
+_is_point_contained
 _locate_point
 _locate_edges
-_locate_boundary
+_locate_overlap
 _north_or_south
 _east_or_west
 
@@ -35,24 +35,68 @@ read_TNM_dem_data
 
 """
 
-less_than_zero = -1e-8        
+less_than_zero = -1e-16
 
-def _is_contained(pt,bounds):
+def _is_coord_contained(icoord,bounds):
+    # coord can be lon or lat
+    # bounds is [wlon,elon] or [slat,nlat]
+    bnds = [b for b in bounds]
+
+    # shift coord to (0,360)
+    coord = icoord
+    if coord >= 360:
+        coord -= 360
+    if coord < 0:
+        coord += 360
+
+    # check for bounds containing greenwich
+    if bnds[1] >= 360:
+        # if coord in not in bounds shift bounds and recheck
+        if not np.logical_and(coord>=bnds[0],coord<=bnds[1]):
+            bnds[1] -= 360
+            bnds[0] -= 360
+            if bnds[1] < bnds[0]:
+                raise RuntimeError('bad bounds')
+
+    l1 = np.logical_and(coord>=bnds[0],coord<=bnds[1])
+
+    return l1
+
+def _is_point_contained(pt,bounds):
     # pt is [lon,lat]
     # bounds is [wlon,elon,slat,nlat]
+
+    # create bounds
+    bnds = [b for b in bounds]
+
+    # shift longitude to (0,360)
+    if pt[0] >= 360:
+        pt[0] -= 360
+    if pt[0] < 0:
+        pt[0] += 360
+
     # check for bounds containing greenwich
-    if np.logical_and(bounds[1]>360,pt[0]<360):
-        l1 = np.logical_and(pt[0]>=(bounds[0]-360),pt[0]<=(bounds[1]-360))
-    else:
-        l1 = np.logical_and(pt[0]>=bounds[0],pt[0]<=bounds[1])
-    l2 = np.logical_and(pt[1]>=bounds[2],pt[1]<=bounds[3])
+    if bnds[1] >= 360:
+        # if pt[0] in not in bounds shift bounds and recheck
+        if not np.logical_and(pt[0]>=bnds[0],pt[0]<=bnds[1]):
+            bnds[1] -= 360
+            bnds[0] -= 360
+            if bnds[1] < bnds[0]:
+                raise RuntimeError('bad bounds')
+
+    l1 = np.logical_and(pt[0]>=bnds[0],pt[0]<=bnds[1])
+    l2 = np.logical_and(pt[1]>=bnds[2],pt[1]<=bnds[3])
     return (l1 and l2)
 
 def _locate_point(pt,blon,blat):
     bounds = [np.min(blon),np.max(blon),np.min(blat),np.max(blat)]
-    if _is_contained(pt,bounds):
+
+    #print('\nb ',bounds)
+    #print('p ',pt,_is_point_contained(pt,bounds))
+    if _is_point_contained(pt,bounds):
         i = arg_closest_point(pt[0],blon,angular=True)
         j = arg_closest_point(pt[1],blat)
+        #print('pt ',blon[i],blat[j])
         return [0,j,i]
     else:
         return [-1,-1,-1]
@@ -62,22 +106,26 @@ def _locate_edges(pt,lon1,lat1,lon2,lat2):
     bounds2 = [np.min(lon2),np.max(lon2),np.min(lat2),np.max(lat2)]
 
     epts = []
-    l1 = np.logical_and(bounds2[0]>=np.min(lon1),bounds2[0]<=np.max(lon1))
+    l1 = _is_coord_contained(bounds2[0],[np.min(lon1),np.max(lon1)])
     if l1:
-        elon = lon1[np.argmin(np.abs(bounds2[0]-lon1))]
+        elon = lon1[arg_closest_point(bounds2[0],lon1,angular=True)]
         epts.append([elon,pt[1]])
-    l1 = np.logical_and(bounds2[1]>=np.min(lon1),bounds2[1]<=np.max(lon1))
+
+    l1 = _is_coord_contained(bounds2[1],[np.min(lon1),np.max(lon1)])
     if l1:
-        elon = lon1[np.argmin(np.abs(bounds2[1]-lon1))]
+        elon = lon1[arg_closest_point(bounds2[1],lon1,angular=True)]
         epts.append([elon,pt[1]])
-    l1 = np.logical_and(bounds2[2]>=np.min(lat1),bounds2[2]<=np.max(lat1))
+
+    l1 = _is_coord_contained(bounds2[2],[np.min(lat1),np.max(lat1)])
     if l1:
-        elat = lat1[np.argmin(np.abs(bounds2[2]-lat1))]
+        elat = lat1[arg_closest_point(bounds2[2],lat1)]
         epts.append([pt[0],elat])
-    l1 = np.logical_and(bounds2[3]>=np.min(lat1),bounds2[3]<=np.max(lat1))
+
+    l1 = _is_coord_contained(bounds2[3],[np.min(lat1),np.max(lat1)])
     if l1:
-        elat = lat1[np.argmin(np.abs(bounds2[3]-lat1))]
+        elat = lat1[arg_closest_point(bounds2[3],lat1)]
         epts.append([pt[0],elat])
+
     return epts
 
 def _locate_overlap(lon1,lat1,lon2,lat2):
@@ -101,6 +149,7 @@ def _locate_overlap(lon1,lat1,lon2,lat2):
             [bounds2[1],bounds2[3]]]
 
     overlap_pts = []
+    # if a point in bounds1 is within bounds2, find point and intersections
     for pt in pts1:
         ei = _locate_point(pt,lon2,lat2)
         if ei[0]==0:
@@ -109,6 +158,7 @@ def _locate_overlap(lon1,lat1,lon2,lat2):
             overlap_pts.append(opt)
             overlap_pts.extend(_locate_edges(opt,lon1,lat1,lon2,lat2))
 
+    # if a point in bounds2 is within bounds1, find point and intersections
     for pt in pts2:
         ei = _locate_point(pt,lon1,lat1)
         if ei[0]==0:
@@ -117,6 +167,72 @@ def _locate_overlap(lon1,lat1,lon2,lat2):
             overlap_pts.append(opt2)
             overlap_pts.extend(_locate_edges(opt2,lon2,lat2,lon1,lat1))
 
+    # overlap with no contained points
+    # (picture two identical rectangles, one rotated 90 degrees)
+    if len(overlap_pts)==0:
+        # find edges
+        edges1 = []
+        len1 = []
+        for n in range(len(pts1)):
+            for m in range(n+1,len(pts1)):
+                if n != m:
+                    p1, p2 = pts1[n],pts1[m]
+                    edges1.append([p1,p2])
+                    len1.append((p2[0]-p1[0])**2+(p2[1]-p1[1])**2)
+        ind = np.argsort(len1)
+        edges1 = [edges1[i] for i in ind[:4]] # select four shortest segments
+
+        edges2 = []
+        len2 = []
+        for n in range(len(pts2)):
+            for m in range(n+1,len(pts2)):
+                if n != m:
+                    p1, p2 = pts2[n],pts2[m]
+                    edges2.append([p1,p2])
+                    len2.append((p2[0]-p1[0])**2+(p2[1]-p1[1])**2)
+        ind = np.argsort(len2)
+        edges2 = [edges2[i] for i in ind[:4]] # select four shortest segments
+
+        for n in range(len(edges1)):
+            pt1a,pt1b = edges1[n]
+            if pt1a[0] != pt1b[0]:
+                m1 = (pt1b[1]-pt1a[1])/(pt1b[0]-pt1a[0])
+            else:
+                m1 = np.nan
+            for m in range(len(edges2)):
+                pt2a,pt2b = edges2[m]
+                if pt2a[0] != pt2b[0]:
+                    m2 = (pt2b[1]-pt2a[1])/(pt2b[0]-pt2a[0])
+                else:
+                    m2 = np.nan
+
+                x1,y1 = pt1a
+                x2,y2 = pt2a
+                if not np.logical_or(np.isnan(m1),np.isnan(m2)):
+                    if m1==m2: # parallel horizontal lines
+                        pt = [np.inf,np.inf]
+                    else:
+                        x3 = (m1*x1-m2*x2+(y2-y1))/(m1-m2)
+                        y3 = m1*(x3-x1)+y1
+                        pt = [x3,y3]
+                else:
+                    if not np.isnan(m1):
+                        x3 = x2
+                        y3 = m1*(x3-x1)+y1
+                        pt = [x3,y3]
+                    elif not np.isnan(m2):
+                        x3 = x1
+                        y3 = m2*(x3-x2)+y2
+                        pt = [x3,y3]
+                    else:       # parallel vertical lines
+                        pt = [np.inf,np.inf]
+                ei = _locate_point(pt,lon1,lat1)
+                if ei[0]==0:
+                    j,i = ei[1:]
+                    opt2 = [lon1[i],lat1[j]]
+                    overlap_pts.append(opt2)
+
+    # remove redundant points
     overlap_pts = np.unique(np.asarray(overlap_pts),axis=0)
     return overlap_pts.tolist()
 
@@ -210,7 +326,9 @@ def _create_grid(corners, x0, y0, dmlon, dmlat, which_dem, tol):
         raise RuntimeError("ex0 ", ex0, corners[0][0], (corners[0][0] - ex0) / dmlon)
 
     # right side (subtract 1 pixel width from right edge)
-    delta_lon = (corners[2][0] - dmlon) - ex0
+    #delta_lon = (corners[2][0] - dmlon) - ex0
+    # right side
+    delta_lon = (corners[2][0] - ex0)
     # for gridcells spanning greenwich
     if delta_lon < 0:
         delta_lon += 360
@@ -218,13 +336,15 @@ def _create_grid(corners, x0, y0, dmlon, dmlat, which_dem, tol):
     nx = np.ceil(delta_lon / dmlon).astype(int)
 
     # update delta_lon for error check
-    delta_lon = (ex0 + nx * dmlon) - (corners[2][0] - dmlon)
+    #delta_lon = (ex0 + nx * dmlon) - (corners[2][0] - dmlon)
+    delta_lon = ((ex0 + nx * dmlon) - corners[2][0])
     if delta_lon > 360:
         delta_lon -= 360
     if np.round(delta_lon / dmlon, tol) > 1 or np.round(delta_lon / dmlon, tol) < 0:
         raise RuntimeError(ex0 + nx * dmlon, corners[2][0])
 
-    elon = ex0 + (np.arange(nx)+0.5)*dmlon
+    elon = np.round(ex0 + (np.arange(nx)+0.5)*dmlon,tol)
+
     if which_dem in ["ASTER","FAB"]:
         elon[elon >= 360] -= 360
     elif which_dem not in ["MERIT","TNM"]:
@@ -240,20 +360,25 @@ def _create_grid(corners, x0, y0, dmlon, dmlat, which_dem, tol):
         raise RuntimeError("ey0 ", ey0, corners[0][1], (corners[0][1] - ey0) / dmlat)
 
     # top (subtract 1 pixel width from upper edge)
-    delta_lat = (corners[1][1] - dmlat) - ey0
+    #delta_lat = (corners[1][1] - dmlat) - ey0
+    # top
+    delta_lat = (corners[1][1] - ey0)
     ny = np.ceil(delta_lat / dmlat).astype(int)
 
     # update delta_lon for error check
-    delta_lat = ((ey0 + ny * dmlat) - (corners[1][1] - dmlat)) / dmlat
+    #delta_lat = ((ey0 + ny * dmlat) - (corners[1][1] - dmlat)) / dmlat
+    delta_lat = ((ey0 + ny * dmlat) - corners[1][1]) / dmlat
     if np.round(delta_lat, tol) > 1 or np.round(delta_lat, tol) < 0:
         raise RuntimeError(ey0 + ny * dmlat, corners[1][1])
 
-    elat = ey0 + (np.arange(ny) + 0.5) * dmlat
+    elat = np.round(ey0 + (np.arange(ny) + 0.5) * dmlat,tol)
 
     # initialize output array
     elev = np.zeros((ny, nx))
     return elon, elat, elev
 
+def _order_indices(i1,i2):
+    return [int(np.min([i1,i2])),int(np.max([i1,i2]))]
 
 def _get_MERIT_dem_filenames(dem_file_template, corners):
     # dem_file_template is assumed to have form of:
@@ -337,7 +462,6 @@ def _get_MERIT_dem_filenames(dem_file_template, corners):
 
     return efiles
 
-
 def read_MERIT_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
 
     # Determine dem filenames
@@ -373,8 +497,8 @@ def read_MERIT_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
         mlon = (x0 + 0.5 * dx) + dx * np.arange(xs)
         mlat = (y0 + 0.5 * dy) + dy * np.arange(ys)
 
-        dmlon = np.abs(mlon[0] - mlon[1])
-        dmlat = np.abs(mlat[0] - mlat[1])
+        dmlon = np.abs(dx)
+        dmlat = np.abs(dy)
 
         # ensure zero is properly accounted for, so 0 is not set to 360
         mlon[mlon < less_than_zero] += 360
@@ -407,6 +531,12 @@ def read_MERIT_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
         j1_dst,j2_dst = arg_closest_point(obounds[2],elat),arg_closest_point(obounds[3],elat)
         i1_src,i2_src = arg_closest_point(obounds[0],mlon, angular=True),arg_closest_point(obounds[1],mlon, angular=True)
         j1_src,j2_src = arg_closest_point(obounds[2],mlat),arg_closest_point(obounds[3],mlat)
+
+        # ensure correct order of indices
+        i1_dst,i2_dst = _order_indices(i1_dst,i2_dst)
+        j1_dst,j2_dst = _order_indices(j1_dst,j2_dst)
+        i1_src,i2_src = _order_indices(i1_src,i2_src)
+        j1_src,j2_src = _order_indices(j1_src,j2_src)
 
         l1 = ((i2_src-i1_src)!=(i2_dst-i1_dst))
         l2 = ((j2_src-j1_src)!=(j2_dst-j1_dst))
@@ -558,8 +688,8 @@ def read_ASTER_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
 
         f.close()
 
-        dmlon = np.abs(mlon[0] - mlon[1])
-        dmlat = np.abs(mlat[0] - mlat[1])
+        dmlon = np.abs(dx)
+        dmlat = np.abs(dy)
 
         # convert latitude to S->N
         mlat = np.flipud(mlat)
@@ -581,6 +711,12 @@ def read_ASTER_dem_data(dem_file_template, corners, tol=10, zeroFill=False):
         j1_dst,j2_dst = arg_closest_point(obounds[2],elat),arg_closest_point(obounds[3],elat)
         i1_src,i2_src = arg_closest_point(obounds[0],mlon, angular=True),arg_closest_point(obounds[1],mlon, angular=True)
         j1_src,j2_src = arg_closest_point(obounds[2],mlat),arg_closest_point(obounds[3],mlat)
+
+        # ensure correct order of indices
+        i1_dst,i2_dst = _order_indices(i1_dst,i2_dst)
+        j1_dst,j2_dst = _order_indices(j1_dst,j2_dst)
+        i1_src,i2_src = _order_indices(i1_src,i2_src)
+        j1_src,j2_src = _order_indices(j1_src,j2_src)
 
         l1 = ((i2_src-i1_src)!=(i2_dst-i1_dst))
         l2 = ((j2_src-j1_src)!=(j2_dst-j1_dst))
@@ -699,7 +835,6 @@ def read_FAB_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
         return {'validDEM':validDEM}
 
     for nfile in range(demfiles.size):
-
         demfile  = demfiles[nfile]
         ds = gd.Open(demfile)
         if nfile==0:
@@ -726,8 +861,8 @@ def read_FAB_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
         mlon = (x0+0.5*dx) + dx*np.arange(xs)
         mlat = (y0+0.5*dy) + dy*np.arange(ys)
 
-        dmlon = np.abs(mlon[0]-mlon[1])
-        dmlat = np.abs(mlat[0]-mlat[1])
+        dmlon = np.abs(dx)
+        dmlat = np.abs(dy)
 
         # convert latitude to S->N
         mlat = np.flipud(mlat)
@@ -749,6 +884,12 @@ def read_FAB_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
         j1_dst,j2_dst = arg_closest_point(obounds[2],elat),arg_closest_point(obounds[3],elat)
         i1_src,i2_src = arg_closest_point(obounds[0],mlon, angular=True),arg_closest_point(obounds[1],mlon, angular=True)
         j1_src,j2_src = arg_closest_point(obounds[2],mlat),arg_closest_point(obounds[3],mlat)
+
+        # ensure correct order of indices
+        i1_dst,i2_dst = _order_indices(i1_dst,i2_dst)
+        j1_dst,j2_dst = _order_indices(j1_dst,j2_dst)
+        i1_src,i2_src = _order_indices(i1_src,i2_src)
+        j1_src,j2_src = _order_indices(j1_src,j2_src)
 
         l1 = ((i2_src-i1_src)!=(i2_dst-i1_dst))
         l2 = ((j2_src-j1_src)!=(j2_dst-j1_dst))
@@ -902,8 +1043,8 @@ def read_TNM_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
         mlon = (x0+0.5*dx) + dx*np.arange(xs)
         mlat = (y0+0.5*dy) + dy*np.arange(ys)
 
-        dmlon = np.abs(mlon[0]-mlon[1])
-        dmlat = np.abs(mlat[0]-mlat[1])
+        dmlon = np.abs(dx)
+        dmlat = np.abs(dy)
 
         # convert latitude to S->N
         mlat = np.flipud(mlat)
@@ -925,6 +1066,12 @@ def read_TNM_dem_data(dem_file_template,corners,tol=10,zeroFill=False):
         j1_dst,j2_dst = arg_closest_point(obounds[2],elat),arg_closest_point(obounds[3],elat)
         i1_src,i2_src = arg_closest_point(obounds[0],mlon, angular=True),arg_closest_point(obounds[1],mlon, angular=True)
         j1_src,j2_src = arg_closest_point(obounds[2],mlat),arg_closest_point(obounds[3],mlat)
+
+        # ensure correct order of indices
+        i1_dst,i2_dst = _order_indices(i1_dst,i2_dst)
+        j1_dst,j2_dst = _order_indices(j1_dst,j2_dst)
+        i1_src,i2_src = _order_indices(i1_src,i2_src)
+        j1_src,j2_src = _order_indices(j1_src,j2_src)
 
         l1 = ((i2_src-i1_src)!=(i2_dst-i1_dst))
         l2 = ((j2_src-j1_src)!=(j2_dst-j1_dst))
